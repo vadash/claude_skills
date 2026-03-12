@@ -1,0 +1,165 @@
+# Objective
+Design a universal, semi-manual pipeline of linked skills based on the existing skill-authoring guidance and the contents of `repomix-SUPERPOWERS.xml`.
+
+Read the 3 documents about how to create good skills, then read `repomix-SUPERPOWERS.xml`, which contains multiple related skills. Use that context to help design the best structure for this workflow.
+
+The current idea is to create 3 linked skills that the user will call manually. Evaluate whether 3 skills are enough or whether more are needed. Consider whether the best approach is 3 manual entry-point skills that load additional skills internally, or some better structure.
+
+Base recommendations only on the provided documents and any tool outputs gathered during this workflow. If required context is missing, do not guess; retrieve it first if possible, otherwise state the missing context explicitly.
+
+# Required Workflow
+
+## 1. `/brainstorming @SOME_INFO`
+Examples of `@SOME_INFO` include architecture, task details, and similar design inputs.
+
+### Expected behavior
+- Go back and forth with the user until the user is happy.
+- Write a Markdown design document to `docs/designs`.
+- If the user posts a review, check its contents and, if the review is sound, implement the requested updates to the design document.
+- Then stop.
+- Do not write code at this stage.
+
+## 2. `/writing-plans @DESIGN_DOC`
+This happens after the user clears context, or directly if the context is still small enough.
+
+### Expected behavior
+- Use TDD red-green as described by the skill.
+- Produce the plan based on the design document.
+- After completion, the user reviews it.
+- When it is ready, commit 1 or 2 files as appropriate:
+  - the plan file
+  - and the design file as well, if it was not already committed
+- Then stop.
+- Do not write code at this stage.
+
+### Task numbering rule
+- Number tasks sequentially as `1, 2, 3, 4, 5, ...`
+- Do not use hierarchical numbering such as `1.1, 1.2, 2.1, 2.2`.
+
+## 3. `/executing-plans @PLAN_DOC do task 1`
+Or:
+`/executing-plans @PLAN_DOC do task 1-3`
+
+This step must happen only after the user runs `/clear` first.
+
+### Expected behavior
+- Execute only the task or task range explicitly requested by the user.
+- Stop exactly when the requested scope is complete.
+- The user may then run `/clear` and repeat with the next tasks.
+
+# Global Constraints
+- Do not use sub-agents besides the explore one.
+- If calling the explore one directly, explicitly mention that it should use Haiku 4.5.
+- Do not use worktrees.
+- `executing-plans` assumes all previous tasks are already done.
+- `executing-plans` also assumes all tests are currently passing before new work begins.
+- When a task is completed, the git working tree should be clean and tests should pass.
+
+Use tools whenever they materially improve correctness, completeness, or grounding. Do not stop early just to save tool calls. If a lookup or file read returns empty, partial, or suspiciously narrow results, retry with one or two different retrieval strategies before concluding the information is unavailable. Resolve prerequisite discovery and validation steps before making design recommendations.
+
+# Design Question to Resolve
+Help design these 3 skills so they work well as a universal, semi-manual pipeline.
+
+Specifically address:
+- whether 3 skills are sufficient or whether more are needed
+- whether the best design is 3 manually invoked skills with additional internal loading
+- what the best overall structure is for this workflow
+
+Return a complete recommendation that covers all three questions above. Before finalizing, verify that the recommendation is grounded in the documents reviewed, that it preserves the required workflow constraints, and that any proposed restructuring is clearly identified.
+
+---
+
+Based on the provided skill-authoring documentation and the `repomix-SUPERPOWERS.xml` reference, here is the recommended design for your universal, semi-manual pipeline.
+
+### 1. Are 3 skills sufficient, or are more needed?
+**Yes, 3 entry-point skills are perfectly sufficient for orchestration, provided they are supported by a "Discipline Layer" of background skills.** 
+
+Your intuition to keep `test-driven-development`, `receiving-code-review`, `systematic-debugging`, and `verification-before-completion` as separate, automatically invoked skills is exactly right. The documentation strongly advocates for **Composability** and **Progressive Disclosure**. By separating the "workflow steps" (the 3 manual skills) from the "how-to-act principles" (the auto-invoked skills), you keep the `SKILL.md` files concise and prevent overwhelming Claude's context window.
+
+*Regarding `verification-before-completion`:* **You absolutely should keep this.** Since your `/executing-plans` skill requires that tests pass and the git tree is clean after every task, `verification-before-completion` acts as the perfect automated enforcer for that rule.
+
+### 2. Is the best design 3 manually invoked skills with internal loading?
+The optimal design is to make the 3 orchestration skills strictly manual by using the `disable-model-invocation: true` frontmatter. This ensures Claude never accidentally triggers a phase transition. 
+
+However, instead of "internally loading" the discipline skills via strict file paths (which the docs warn against using `@` links for, as it force-loads and burns context), you should explicitly instruct the 3 manual skills to **reference** the background skills. Claude's native skill discovery will automatically pull in the TDD or Debugging skills when the orchestration skill mentions it's time to test or debug.
+
+### 3. Recommended Overall Structure
+
+Here is the architectural blueprint for your workflow.
+
+#### The Discipline Layer (Auto-invoked)
+These skills sit in your `.claude/skills/` directory with standard frontmatter. Claude loads them automatically when relevant:
+1. `test-driven-development`
+2. `systematic-debugging`
+3. `verification-before-completion`
+4. `receiving-code-review`
+
+#### The Orchestration Layer (Manual entry-points)
+These are your 3 pipeline skills. They contain `disable-model-invocation: true` so they only run when you type `/brainstorming`, `/writing-plans`, or `/executing-plans`.
+
+---
+
+### Skill 1: `/brainstorming`
+**Frontmatter:**
+```yaml
+---
+name: brainstorming
+description: Explore user intent, requirements, and design before implementation.
+disable-model-invocation: true
+---
+```
+**Core Instructions & Constraints:**
+- **Context Gathering:** Instruct Claude to review the project context. If deep codebase exploration is needed, explicitly state: *"Use the `Task` tool with the `Explore` agent and specify the model `Haiku 4.5` (claude-3-5-haiku-latest) to research the codebase without modifying it."*
+- **Collaboration:** Ask one clarifying question at a time.
+- **Output:** Write the finalized design document to `docs/designs/`. 
+- **Feedback Loop:** Ask the user for a review. If sound, implement updates to the document.
+- **Hard Gate:** Add a strict `<HARD-GATE>` stating: *"Do NOT invoke any implementation skills, write any code, or take any action beyond writing the design document. Stop and wait for the user."*
+
+---
+
+### Skill 2: `/writing-plans`
+**Frontmatter:**
+```yaml
+---
+name: writing-plans
+description: Convert a design document into a sequential implementation plan.
+disable-model-invocation: true
+---
+```
+**Core Instructions & Constraints:**
+- **Input:** `$ARGUMENTS` (Expects the path to the design doc).
+- **Task Numbering:** Explicitly enforce: *"Number tasks sequentially as 1, 2, 3. DO NOT use hierarchical numbering like 1.1 or 2.1."*
+- **TDD Integration:** Instruct Claude to structure every task block in the plan to follow the `test-driven-development` skill. For example, mandate this template for each task:
+  - `- [ ] Step 1: Write failing test`
+  - `- [ ] Step 2: Run test to verify it fails`
+  - `- [ ] Step 3: Minimal implementation`
+  - `- [ ] Step 4: Verify test passes`
+- **Output:** Write the plan to `docs/plans/` and prompt the user for review.
+- **Hard Gate:** Once approved, commit the plan and design files. Stop execution. *"Do not write any implementation code."*
+
+---
+
+### Skill 3: `/executing-plans`
+**Frontmatter:**
+```yaml
+---
+name: executing-plans
+description: Execute specific tasks from an implementation plan.
+argument-hint: [plan-path] do task [N]
+disable-model-invocation: true
+---
+```
+**Core Instructions & Constraints:**
+- **Argument Parsing:** Use `$ARGUMENTS` to determine which plan to read and exactly which task range to execute (e.g., "do task 1-3").
+- **State Assumption:** Explicitly state: *"Assume all previous tasks are complete, the git working tree is clean, and all tests are currently passing."*
+- **Execution Loop (No Sub-agents):** Because you are not using implementer sub-agents or worktrees, Claude must execute the tasks sequentially in the current session. 
+- **Enforcing Discipline:** Add reminders to trigger the background skills: 
+  - *"Follow the `test-driven-development` cycle exactly as written in the plan."*
+  - *"If a test fails unexpectedly, stop guessing and automatically apply the `systematic-debugging` skill."*
+- **Verification & Cleanup:** After completing the requested scope, trigger `verification-before-completion`. Ensure tests pass and commit the changes so the git working tree is clean.
+- **Hard Gate:** *"Stop exactly when the requested scope is complete. Remind the user they can run `/clear` and then request the next tasks."*
+
+### Summary of Best Practices Applied
+1. **Conciseness:** By relying on background discipline skills, your 3 manual skills remain under the recommended 500-line limit, acting strictly as workflow checklists.
+2. **Elimination of Anti-patterns:** We stripped out all the `Task` agent dispatches (except the optional `Explore` agent on Haiku) and worktree logic from the original SUPERPOWERS repo, perfectly matching your constraints.
+3. **Persuasion Principles:** Use strong, imperative language (`<HARD-GATE>`, "You MUST", "Stop exactly when") to prevent Claude from getting overly helpful and writing code during the brainstorming or planning phases.
