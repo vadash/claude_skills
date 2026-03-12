@@ -1,70 +1,63 @@
 ---
 name: executing-plans
-description: Use when you have a written implementation plan to execute in a separate session with review checkpoints
+description: Execute specific tasks from an implementation plan in a clean session.
+disable-model-invocation: true
+argument-hint: [plan-path] do task [N or N-M]
 ---
 
 # Executing Plans
 
-## Overview
+Execute only the tasks explicitly requested from an implementation plan.
 
-Load plan, review critically, execute all tasks, report when complete.
+<HARD-GATE>
+Execute ONLY the task or task range the user requested. Stop exactly when the requested scope is complete. Do not continue to the next task beyond the requested range.
+</HARD-GATE>
 
-**Announce at start:** "I'm using the executing-plans skill to implement this plan."
+## Input
 
-**Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (such as Claude Code or Codex). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
+Parse `$ARGUMENTS` to determine:
+1. **Plan path** — the plan file to read
+2. **Task range** — which tasks to execute (e.g., "do task 1", "do task 1-3")
 
-## The Process
+Examples:
+- `/executing-plans docs/plans/2025-01-15-auth.md do task 1`
+- `/executing-plans docs/plans/2025-01-15-auth.md do task 2-4`
 
-### Step 1: Load and Review Plan
-1. Read plan file
-2. Review critically - identify any questions or concerns about the plan
-3. If concerns: Raise them with your human partner before starting
-4. If no concerns: Create TodoWrite and proceed
+## Assumptions
 
-### Step 2: Execute Tasks
+Before starting, these MUST be true:
+- All previous tasks in the plan are already completed
+- All tests are currently passing
+- The git working tree is clean
 
-For each task:
-1. Mark as in_progress
-2. Follow each step exactly (plan has bite-sized steps)
-3. Run verifications as specified
-4. Mark as completed
+If any assumption is violated, stop and inform the user before proceeding.
 
-### Step 3: Complete Development
+## Execution
 
-After all tasks complete and verified:
-- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
-- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
-- Follow that skill to verify tests, present options, execute choice
+For each task in the requested range:
 
-## When to Stop and Ask for Help
+1. Read the task steps from the plan
+2. Follow the TDD red-green cycle exactly as written in the plan:
+   - Write the failing test
+   - Run it — verify it fails as expected
+   - Write the minimal implementation
+   - Run tests — verify they pass
+3. Commit after each completed task
 
-**STOP executing immediately when:**
-- Hit a blocker (missing dependency, test fails, instruction unclear)
-- Plan has critical gaps preventing starting
-- You don't understand an instruction
-- Verification fails repeatedly
+**If a test fails unexpectedly:** Stop guessing. Apply systematic debugging — investigate the root cause methodically before attempting a fix.
 
-**Ask for clarification rather than guessing.**
+**If blocked:** Stop executing and ask the user for help. Do not guess or work around missing dependencies, unclear instructions, or repeated failures.
 
-## When to Revisit Earlier Steps
+## Verification
 
-**Return to Review (Step 1) when:**
-- Partner updates the plan based on your feedback
-- Fundamental approach needs rethinking
+After completing all requested tasks:
+- Run the full test suite — confirm everything passes
+- Verify the git working tree is clean (all changes committed)
+- Report what was completed
 
-**Don't force through blockers** - stop and ask.
+## Completion
 
-## Remember
-- Review plan critically first
-- Follow plan steps exactly
-- Don't skip verifications
-- Reference skills when plan says to
-- Stop when blocked, don't guess
-- Never start implementation on main/master branch without explicit user consent
+> "Tasks [N-M] complete. All tests passing, working tree clean.
+> Run `/clear`, then `/executing-plans [plan-path] do task [next]` to continue."
 
-## Integration
-
-**Required workflow skills:**
-- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
-- **superpowers:writing-plans** - Creates the plan this skill executes
-- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+**Stop.** Do not continue beyond the requested scope.

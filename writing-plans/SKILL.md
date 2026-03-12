@@ -1,76 +1,60 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: Convert a design document into a sequential TDD implementation plan.
+disable-model-invocation: true
+argument-hint: [design-doc-path]
 ---
 
 # Writing Plans
 
-## Overview
+Read the design document and produce a detailed, sequential implementation plan using TDD red-green methodology.
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+Write the plan assuming the implementer has zero context about the codebase or problem domain. Document everything: which files to touch, complete code, exact test commands, expected output.
 
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+<HARD-GATE>
+Do NOT write implementation code. Your ONLY output is a plan document. Stop after the plan is committed and the user approves it.
+</HARD-GATE>
 
-**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+## Input
 
-**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+Read the design document at the path provided in `$ARGUMENTS`.
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
-- (User preferences for plan location override this default)
+If the design covers multiple independent subsystems, suggest breaking it into separate plans — one per subsystem.
 
-## Scope Check
+## Task Numbering Rule
 
-If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+Number tasks sequentially: **1, 2, 3, 4, 5, ...**
+
+Do NOT use hierarchical numbering such as 1.1, 1.2, 2.1, 2.2. Every task is a top-level number.
 
 ## File Structure
 
-Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+Before defining tasks, map out which files will be created or modified:
+- Each file should have one clear responsibility
+- Prefer smaller, focused files over large ones
+- In existing codebases, follow established patterns
 
-- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
-- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
-- Files that change together should live together. Split by responsibility, not by technical layer.
-- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+## Plan Format
 
-This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
-
-## Bite-Sized Task Granularity
-
-**Each step is one action (2-5 minutes):**
-- "Write the failing test" - step
-- "Run it to make sure it fails" - step
-- "Implement the minimal code to make the test pass" - step
-- "Run the tests and make sure they pass" - step
-- "Commit" - step
-
-## Plan Document Header
-
-**Every plan MUST start with this header:**
-
-```markdown
-# [Feature Name] Implementation Plan
-
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
-
-**Goal:** [One sentence describing what this builds]
-
-**Architecture:** [2-3 sentences about approach]
-
-**Tech Stack:** [Key technologies/libraries]
-
----
-```
-
-## Task Structure
+Save to `docs/plans/YYYY-MM-DD-<feature-name>.md`:
 
 ````markdown
-### Task N: [Component Name]
+# [Feature Name] Implementation Plan
+
+**Goal:** [One sentence]
+**Architecture:** [2-3 sentences]
+**Tech Stack:** [Key technologies]
+
+---
+
+### Task 1: [Component Name]
 
 **Files:**
 - Create: `exact/path/to/file.py`
-- Modify: `exact/path/to/existing.py:123-145`
+- Modify: `exact/path/to/existing.py`
 - Test: `tests/exact/path/to/test.py`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] Step 1: Write the failing test
 
 ```python
 def test_specific_behavior():
@@ -78,70 +62,63 @@ def test_specific_behavior():
     assert result == expected
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] Step 2: Run test to verify it fails
 
 Run: `pytest tests/path/test.py::test_name -v`
 Expected: FAIL with "function not defined"
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] Step 3: Write minimal implementation
 
 ```python
 def function(input):
     return expected
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] Step 4: Run test to verify it passes
 
 Run: `pytest tests/path/test.py::test_name -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] Step 5: Commit
 
 ```bash
-git add tests/path/test.py src/path/file.py
-git commit -m "feat: add specific feature"
+git add -A && git commit -m "feat: add specific feature"
 ```
+
+### Task 2: [Next Component]
+...
 ````
 
-## Remember
-- Exact file paths always
-- Complete code in plan (not "add validation")
+## Task Granularity
+
+Each step is one action (2-5 minutes):
+- "Write the failing test" — one step
+- "Run it to verify it fails" — one step
+- "Write minimal implementation" — one step
+- "Run tests to verify they pass" — one step
+- "Commit" — one step
+
+Every task follows the TDD red-green cycle: start with a failing test, then write the minimal code to make it pass.
+
+## Plan Requirements
+
+- Exact file paths in every task
+- Complete code in the plan — never "add validation here"
 - Exact commands with expected output
-- Reference relevant skills with @ syntax
-- DRY, YAGNI, TDD, frequent commits
+- DRY, YAGNI, frequent commits
 
-## Plan Review Loop
+## User Review
 
-After completing each chunk of the plan:
+After writing the plan, ask the user to review:
 
-1. Dispatch plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
-   - Provide: chunk content, path to spec document
-2. If ❌ Issues Found:
-   - Fix the issues in the chunk
-   - Re-dispatch reviewer for that chunk
-   - Repeat until ✅ Approved
-3. If ✅ Approved: proceed to next chunk (or execution handoff if last chunk)
+> "Plan written to `<path>`. Please review and let me know if you want changes."
 
-**Chunk boundaries:** Use `## Chunk N: <name>` headings to delimit chunks. Each chunk should be ≤1000 lines and logically self-contained.
+Revise as needed until the user approves.
 
-**Review loop guidance:**
-- Same agent that wrote the plan fixes it (preserves context)
-- If loop exceeds 5 iterations, surface to human for guidance
-- Reviewers are advisory - explain disagreements if you believe feedback is incorrect
+## Commit
 
-## Execution Handoff
+When the user approves, commit:
+1. The plan file
+2. The design document — if it was not already committed
 
-After saving the plan:
-
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Ready to execute?"**
-
-**Execution path depends on harness capabilities:**
-
-**If harness has subagents (Claude Code, etc.):**
-- **REQUIRED:** Use superpowers:subagent-driven-development
-- Do NOT offer a choice - subagent-driven is the standard approach
-- Fresh subagent per task + two-stage review
-
-**If harness does NOT have subagents:**
-- Execute plan in current session using superpowers:executing-plans
-- Batch execution with checkpoints for review
+**Stop after committing.** Do not write implementation code. The user will invoke `/executing-plans` manually after running `/clear`.
