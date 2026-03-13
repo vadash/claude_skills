@@ -73,7 +73,7 @@ The script auto-detects the first unchecked task (`- [ ]`) and runs from there.
 | `-ClaudeBin` | `claude` | Claude CLI binary name or path |
 | `-MaxTurns` | `40` | Max Claude turns per task |
 | `-TaskTimeout` | `900` | Seconds before killing a stuck task (15 min) |
-| `-ContextLimit` | `70000` | Token estimate threshold for context hook |
+| `-ContextLimit` | `70000` | Token threshold — wrapper kills task when peak context exceeds this |
 | `-MaxFailures` | `2` | Consecutive failures before stopping the loop |
 | `-StartTask` | `0` | Force start at a specific task (0 = auto-detect) |
 | `-LogDir` | `logs/auto-execute` | Where run/task logs are written |
@@ -101,12 +101,13 @@ For each unchecked task in the plan:
 4. **Verify** — checks 3 signals: exit code 0, new commit, clean tree
 5. **Decide** — on success advances to next task; on failure stashes dirty state or retries
 
-Each task logs peak context (input_tokens + cache_read) extracted from `assistant` events only. Result events are excluded because they contain cumulative session totals.
+Each task logs peak context (input_tokens + cache_read) extracted from stream-json events. Result events are excluded because they contain cumulative session totals.
 
 Stops when:
 - All tasks complete
 - Cancelled by user (Ctrl+C) — kills child process cleanly; also detects SIGINT exit codes (130/3221225786) when child swallows the interrupt
 - Consecutive failures hit `-MaxFailures`
+- Context limit exceeded (wrapper kills process when peak context > `-ContextLimit`)
 - Dirty tree detected (changes are git-stashed)
 - Timeout exceeded
 
@@ -134,7 +135,7 @@ Both hooks only activate when `AXE_ACTIVE=true` (set automatically by the wrappe
 
 ### axe-context-check.ps1
 
-Estimates token usage from transcript file size (`bytes / 4`). Blocks all tool calls when the estimate exceeds `-ContextLimit`, forcing Claude to stop gracefully.
+No-op. Context limit enforcement is handled in real-time by the wrapper using exact token counts from stream-json events. The hook file is kept so existing `settings.json` registrations don't break.
 
 ### axe-loop-detect.ps1
 
