@@ -38,8 +38,8 @@ if ($gitRoot) {
 }
 
 # Set environment for hooks
-$env:RALPH_ACTIVE = "true"
-$env:RALPH_CONTEXT_LIMIT = $ContextLimit
+$env:AXE_ACTIVE = "true"
+$env:AXE_CONTEXT_LIMIT = $ContextLimit
 
 # --- Phase 2: Task Tracking ---
 $planContent = Get-Content $Plan -Raw
@@ -251,7 +251,7 @@ try {
         $overallMetrics.CostUSD += $taskTokens.CostUSD
 
         # Clean up temp counter files between tasks (fresh session = fresh counter)
-        Get-ChildItem -Path $env:TEMP -Filter "ralph-calls-*.jsonl" -ErrorAction SilentlyContinue |
+        Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
             Remove-Item -Force -ErrorAction SilentlyContinue
     }
 
@@ -262,8 +262,8 @@ try {
     $stopReason = "Error: $_"
 } finally {
     # Clean up environment
-    $env:RALPH_ACTIVE = $null
-    $env:RALPH_CONTEXT_LIMIT = $null
+    $env:AXE_ACTIVE = $null
+    $env:AXE_CONTEXT_LIMIT = $null
     $overallStart.Stop()
 
     # Warn about possible background Claude process on Ctrl+C
@@ -273,7 +273,7 @@ try {
     }
 
     # Clean up temp counter files
-    Get-ChildItem -Path $env:TEMP -Filter "ralph-calls-*.jsonl" -ErrorAction SilentlyContinue |
+    Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction SilentlyContinue
 
     # Write summary log
