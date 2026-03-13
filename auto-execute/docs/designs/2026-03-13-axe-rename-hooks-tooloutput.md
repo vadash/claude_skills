@@ -73,13 +73,14 @@ When `auto-execute.ps1` starts, it checks if the target project has the `axe-` s
 
 ### Execution Order
 
-Hook check runs **after** git repo validation but **before** the clean-tree pre-flight check. If hooks are installed or updated, they're auto-committed so the tree is clean when pre-flight runs.
+Hook check runs **after** confirming a clean working tree but **before** the remaining pre-flight checks. The clean-tree check must come first — otherwise `git commit` in Phase 1.5 could accidentally include the user's staged files alongside the hooks.
 
 ```
 Phase 1: Pre-flight (partial)
   ├── CLI exists?
   ├── Plan file exists?
-  ├── Git repo? ← must pass before hook check
+  ├── Git repo?
+  ├── Clean working tree? ← BEFORE hooks (prevents accidental commits)
   │
   ├── Phase 1.5: Hook Auto-Installer ← NEW
   │     ├── Get-ProjectHooksStatus
@@ -87,7 +88,6 @@ Phase 1: Pre-flight (partial)
   │     ├── If Outdated → Install-ProjectHooks → git commit → message
   │     └── If Ok → continue
   │
-  ├── Clean working tree? ← runs after hooks are committed
   ├── Plan has unchecked tasks?
   └── Log directory exists?
 ```
@@ -149,9 +149,11 @@ Hook commands registered in settings.json:
 
 Split `Test-PreFlightChecks` into two phases:
 
-**Phase 1a** (before hooks): CLI exists, plan file exists, git repo check.
+**Phase 1a** (before hooks): CLI exists, plan file exists, git repo check, clean working tree.
 **Phase 1.5**: Hook auto-installer (new code in main script).
-**Phase 1b** (after hooks): Clean tree, unchecked tasks, log directory.
+**Phase 1b** (after hooks): Unchecked tasks, log directory.
+
+The clean-tree check is in Phase 1a to guarantee that when Phase 1.5 runs `git commit`, only hook files are committed — no accidental inclusion of user's staged changes.
 
 The hook installer block:
 
@@ -223,8 +225,8 @@ function Format-ToolEvent {
                 if ($toolName -eq "Bash" -and $block.input.command) {
                     $inputStr = $block.input.command
                 } elseif ($toolName -match "^(Read|Write|Edit)$" -and $block.input.file_path) {
-                    $fileName = Split-Path $block.input.file_path -Leaf
-                    $inputStr = $fileName
+                    $fileName = [System.IO.Path]::GetFileName($block.input.file_path)
+                    $inputStr = if ($fileName) { $fileName } else { $block.input.file_path }
                     if ($toolName -eq "Edit") { $inputStr += " (editing)" }
                 } elseif ($toolName -eq "Glob" -and $block.input.pattern) {
                     $inputStr = $block.input.pattern
@@ -301,3 +303,15 @@ Existing tests for `Format-ToolEvent` (truncation, non-tool events, multiple too
 | 5 | Split pre-flight checks, insert Phase 1.5 hook installer in `auto-execute.ps1` |
 | 6 | Rewrite `Format-ToolEvent` with per-tool extraction |
 | 7 | Add new tests, update existing tests |
+
+---
+
+## Review Notes
+
+Findings from external review, evaluated against codebase and prior decisions:
+
+| # | Finding | Verdict | Resolution |
+|---|---------|---------|------------|
+| 1 | Silent auto-update overwrites user's local hook customizations | **Rejected** | User explicitly chose auto-update for Outdated state. Configurable values (context limit, max turns) are already exposed as parameters/env vars, not hardcoded in hooks. YAGNI. |
+| 2 | Dirty tree + `git commit` in Phase 1.5 could accidentally commit user's staged files | **Accepted** | Moved clean-tree check to Phase 1a (before hook installer). Now the tree is guaranteed clean when Phase 1.5 commits. |
+| 3 | `Split-Path ""` throws terminating error on empty/null `file_path` | **Accepted** | Replaced `Split-Path` with `[System.IO.Path]::GetFileName()` which safely returns empty string. The `-and $block.input.file_path` guard also catches null, but belt-and-suspenders for robustness. |
