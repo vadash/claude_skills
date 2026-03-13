@@ -123,40 +123,6 @@ $stopReason = "Unknown"
 $overallMetrics = @{ Input=0; Output=0; CacheRead=0; CacheWrite=0; Total=0; HitRate=0; CostUSD=0 }
 $overallPeakContext = 0
 
-# Ctrl+C handler — compiled C# delegate, kept as fallback for Ctrl+Break.
-# Primary interrupt uses TreatControlCAsInput + ReadKey (see below), which prevents
-# Node.js from consuming Ctrl+C. The C# handler is defense-in-depth.
-if (-not ("AxeCtrlC" -as [type])) {
-    Add-Type -TypeDefinition @"
-using System;
-using System.Diagnostics;
-public static class AxeCtrlC {
-    public static volatile bool IsCancelled = false;
-    public static volatile int ChildPid = -1;
-    public static void Handler(object sender, ConsoleCancelEventArgs e) {
-        e.Cancel = true;
-        IsCancelled = true;
-        int pid = ChildPid;
-        if (pid > 0) {
-            try {
-                var psi = new ProcessStartInfo("taskkill", "/F /T /PID " + pid) {
-                    CreateNoWindow = true, UseShellExecute = false
-                };
-                Process.Start(psi);
-            } catch { }
-        }
-    }
-}
-"@
-}
-[AxeCtrlC]::IsCancelled = $false
-[AxeCtrlC]::ChildPid = -1
-$cancelHandler = [System.Delegate]::CreateDelegate(
-    [System.ConsoleCancelEventHandler],
-    [AxeCtrlC].GetMethod("Handler")
-)
-[Console]::add_CancelKeyPress($cancelHandler)
-
 # Reclaim Ctrl+C from child process — TreatControlCAsInput converts Ctrl+C into a
 # regular keystroke detectable via ReadKey, instead of an OS CTRL_C_EVENT that Node.js
 # (claude) would handle directly, preventing our handler from ever firing.
@@ -199,8 +165,6 @@ try {
             -RedirectStandardInput $emptyStdinPath `
             -RedirectStandardOutput $taskLogPath `
             -RedirectStandardError "$taskLogPath.err"
-        [AxeCtrlC]::ChildPid = $process.Id
-
         # Tail the log file with stream-json parsing
         $taskExitCode = $null
         $lastSize = 0
@@ -214,19 +178,6 @@ try {
         $transcriptCheckCounter = 0
 
         while (-not $exited) {
-            # Check for Ctrl+C cancellation
-            if ([AxeCtrlC]::IsCancelled) {
-                # C# handler already killed the child via taskkill
-                if (-not $process.HasExited) {
-                    & taskkill /F /T /PID $process.Id 2>$null | Out-Null
-                }
-                $taskExitCode = 130
-                $exited = $true
-                $running = $false
-                $stopReason = "Cancelled by user (Ctrl+C)"
-                break
-            }
-
             $exited = $process.WaitForExit(200)
 
             # Check for user interrupt keys (Ctrl+C, Escape, Q)
@@ -370,8 +321,8 @@ try {
 
         if ($null -eq $taskExitCode) { $taskExitCode = $process.ExitCode }
 
-        # Check if run was cancelled (ReadKey handler, C# handler, or child SIGINT exit codes)
-        if ($stopReason -match "^Cancelled" -or [AxeCtrlC]::IsCancelled -or $taskExitCode -eq 130 -or $taskExitCode -eq 3221225786) {
+        # Check if run was cancelled (ReadKey handler or child SIGINT exit codes)
+        if ($stopReason -match "^Cancelled" -or $taskExitCode -eq 130 -or $taskExitCode -eq 3221225786) {
             $taskStart.Stop()
             Write-Host "`n[!] Run cancelled by user." -ForegroundColor Yellow
             $running = $false
@@ -468,17 +419,14 @@ try {
 } catch {
     $stopReason = "Error: $_"
 } finally {
-    # Restore console Ctrl+C behavior and remove handler
+    # Restore console Ctrl+C behavior
     try { [Console]::TreatControlCAsInput = $originalTreatCtrlC } catch { }
-    [Console]::remove_CancelKeyPress($cancelHandler)
 
     # Kill child process if still running
     if ($process -and -not $process.HasExited) {
         & taskkill /F /T /PID $process.Id 2>$null | Out-Null
         Write-Host "Killed running Claude process (PID $($process.Id))." -ForegroundColor Yellow
     }
-    [AxeCtrlC]::ChildPid = -1
-    [AxeCtrlC]::IsCancelled = $false
 
     # Clean up environment
     $env:AXE_ACTIVE = $null
