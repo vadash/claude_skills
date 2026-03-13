@@ -233,3 +233,35 @@ function Get-CostFromEvent {
 
     return $null
 }
+
+function Format-ToolEvent {
+    param(
+        [PSObject]$Event
+    )
+
+    if ($Event.type -ne "assistant" -or -not $Event.message -or -not $Event.message.content) {
+        return $null
+    }
+
+    $results = @()
+
+    foreach ($block in $Event.message.content) {
+        if ($block.type -eq "tool_use") {
+            $toolName = $block.name
+            $inputStr = if ($block.input) {
+                $block.input | ConvertTo-Json -Depth 5 -Compress
+            } else {
+                ""
+            }
+
+            if ($inputStr.Length -gt 150) {
+                $inputStr = $inputStr.Substring(0, 150) + "..."
+            }
+
+            $results += "[TOOL] $toolName | $inputStr"
+        }
+    }
+
+    if ($results.Count -eq 0) { return $null }
+    return $results
+}

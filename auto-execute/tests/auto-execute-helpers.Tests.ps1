@@ -331,3 +331,67 @@ Describe "Get-CostFromEvent" {
         $result | Should -BeNull
     }
 }
+
+Describe "Format-ToolEvent" {
+    It "formats a tool_use event" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"pwd"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result.Count | Should -Be 1
+        $result[0] | Should -Match '^\[TOOL\] Bash \|'
+        $result[0] | Should -Match 'pwd'
+    }
+
+    It "formats multiple tool_use blocks in one message" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"config.json"}},{"type":"tool_use","name":"Bash","input":{"command":"echo hello"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result.Count | Should -Be 2
+        $result[0] | Should -Match '^\[TOOL\] Read \|'
+        $result[1] | Should -Match '^\[TOOL\] Bash \|'
+    }
+
+    It "returns null for a text-only assistant event" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"text","text":"hello"}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = Format-ToolEvent -Event $event
+        $result | Should -BeNull
+    }
+
+    It "returns null for non-assistant events" {
+        $json = '{"type":"system","subtype":"init"}'
+        $event = $json | ConvertFrom-Json
+        $result = Format-ToolEvent -Event $event
+        $result | Should -BeNull
+
+        $json2 = '{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"}]}}'
+        $event2 = $json2 | ConvertFrom-Json
+        $result2 = Format-ToolEvent -Event $event2
+        $result2 | Should -BeNull
+
+        $json3 = '{"type":"result","subtype":"success"}'
+        $event3 = $json3 | ConvertFrom-Json
+        $result3 = Format-ToolEvent -Event $event3
+        $result3 | Should -BeNull
+    }
+
+    It "truncates long tool input to 150 characters" {
+        $longCommand = "a" * 200
+        $eventObj = @{
+            type = "assistant"
+            message = @{
+                content = @(
+                    @{
+                        type = "tool_use"
+                        name = "Bash"
+                        input = @{ command = $longCommand }
+                    }
+                )
+            }
+        } | ConvertTo-Json -Depth 5
+        $event = $eventObj | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)[0]
+        $result | Should -Match '^\[TOOL\] Bash \|'
+        $result | Should -Match '\.\.\.$'
+    }
+}
