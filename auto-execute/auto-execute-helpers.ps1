@@ -198,3 +198,26 @@ function Read-StreamJsonChunk {
 
     return @{ Events = $events; Buffer = $newBuffer }
 }
+
+function Get-TokensFromEvent {
+    param(
+        [PSObject]$Event
+    )
+
+    $usage = $null
+
+    if ($Event.type -eq "assistant" -and $Event.message -and $Event.message.usage) {
+        $usage = $Event.message.usage
+    } elseif ($Event.type -eq "result" -and $Event.usage) {
+        $usage = $Event.usage
+    }
+
+    if (-not $usage) { return $null }
+
+    return @{
+        Input      = [int]$usage.input_tokens
+        Output     = [int]$usage.output_tokens
+        CacheRead  = [int]$usage.cache_read_input_tokens
+        CacheWrite = [int]$usage.cache_creation_input_tokens
+    }
+}

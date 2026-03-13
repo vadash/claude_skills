@@ -270,3 +270,41 @@ Describe "Read-StreamJsonChunk" {
         $result.Buffer | Should -Be ""
     }
 }
+
+Describe "Get-TokensFromEvent" {
+    It "extracts tokens from an assistant event" {
+        $json = '{"type":"assistant","message":{"usage":{"input_tokens":2943,"output_tokens":27,"cache_read_input_tokens":0,"cache_creation_input_tokens":5305}}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-TokensFromEvent -Event $event
+        $result | Should -Not -BeNull
+        $result.Input | Should -Be 2943
+        $result.Output | Should -Be 27
+        $result.CacheRead | Should -Be 0
+        $result.CacheWrite | Should -Be 5305
+    }
+
+    It "extracts tokens from a result event" {
+        $json = '{"type":"result","usage":{"input_tokens":5980,"output_tokens":92,"cache_read_input_tokens":5305,"cache_creation_input_tokens":5305}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-TokensFromEvent -Event $event
+        $result | Should -Not -BeNull
+        $result.Input | Should -Be 5980
+        $result.Output | Should -Be 92
+        $result.CacheRead | Should -Be 5305
+        $result.CacheWrite | Should -Be 5305
+    }
+
+    It "returns null for system events (no usage)" {
+        $json = '{"type":"system","subtype":"init"}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-TokensFromEvent -Event $event
+        $result | Should -BeNull
+    }
+
+    It "returns null for user events (no usage)" {
+        $json = '{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-TokensFromEvent -Event $event
+        $result | Should -BeNull
+    }
+}
