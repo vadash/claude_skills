@@ -196,6 +196,9 @@ try {
         $buffer = ""
         $taskTokens = @{ Input=0; Output=0; CacheRead=0; CacheWrite=0; Total=0; HitRate=0; CostUSD=0 }
         $taskPeakContext = 0
+        $taskSessionId = $null
+        $transcriptOffset = 0
+        $transcriptCheckCounter = 0
 
         while (-not $exited) {
             # Check for Ctrl+C cancellation
@@ -227,6 +230,11 @@ try {
                     $buffer = $parsed.Buffer
 
                     foreach ($event in $parsed.Events) {
+                        # Capture session_id from init event for transcript reading
+                        if ($event.type -eq "system" -and $event.subtype -eq "init" -and $event.session_id) {
+                            $taskSessionId = $event.session_id
+                        }
+
                         # Display tool calls
                         $toolLines = Format-ToolEvent -Event $event
                         if ($toolLines) {
@@ -244,21 +252,7 @@ try {
                             $taskTokens.CacheWrite += $usage.CacheWrite
                         }
 
-                        # Track peak context size (input_tokens + cache_read for this turn)
-                        $ctxSize = Get-ContextSizeFromEvent -Event $event
-                        if ($ctxSize -gt $taskPeakContext) {
-                            $taskPeakContext = $ctxSize
-                        }
-
-                        # Active Context Limit Enforcement
-                        if ($ContextLimit -gt 0 -and $taskPeakContext -gt $ContextLimit) {
-                            Write-Host "`n[CONTEXT LIMIT] Task $currentTask exceeded context limit: $(Format-ContextSize $taskPeakContext) > $(Format-ContextSize $ContextLimit)." -ForegroundColor Red
-                            & taskkill /F /T /PID $process.Id 2>$null | Out-Null
-                            $taskExitCode = 2
-                            $exited = $true
-                            $stopReason = "Context limit exceeded ($taskPeakContext > $ContextLimit)"
-                            break
-                        }
+                        # Context tracking moved to transcript-based polling below
 
                         # Authoritative result event overwrites accumulated tokens
                         $cost = Get-CostFromEvent -Event $event
@@ -273,6 +267,28 @@ try {
                             }
                         }
                     }
+                }
+            }
+
+            # Transcript-based context tracking (every ~1s = 5 poll iterations)
+            $transcriptCheckCounter++
+            if ($taskSessionId -and $transcriptCheckCounter % 5 -eq 0) {
+                $projectHash = Get-ClaudeProjectHash -DirPath $gitRoot
+                $transcriptPath = Join-Path $env:USERPROFILE ".claude/projects/$projectHash/$taskSessionId.jsonl"
+                $tResult = Get-TranscriptContextPeak -TranscriptPath $transcriptPath -StartOffset $transcriptOffset
+                $transcriptOffset = $tResult.BytesRead
+                if ($tResult.PeakContext -gt $taskPeakContext) {
+                    $taskPeakContext = $tResult.PeakContext
+                }
+
+                # Active Context Limit Enforcement
+                if ($ContextLimit -gt 0 -and $taskPeakContext -gt $ContextLimit) {
+                    Write-Host "`n[CONTEXT LIMIT] Task $currentTask exceeded context limit: $(Format-ContextSize $taskPeakContext) > $(Format-ContextSize $ContextLimit)." -ForegroundColor Red
+                    & taskkill /F /T /PID $process.Id 2>$null | Out-Null
+                    $taskExitCode = 2
+                    $exited = $true
+                    $stopReason = "Context limit exceeded ($taskPeakContext > $ContextLimit)"
+                    break
                 }
             }
 
@@ -297,6 +313,16 @@ try {
                 & taskkill /F /T /PID $process.Id 2>$null | Out-Null
                 $taskExitCode = 1
                 $exited = $true
+            }
+        }
+
+        # Final transcript read for most accurate peak context
+        if ($taskSessionId) {
+            $projectHash = Get-ClaudeProjectHash -DirPath $gitRoot
+            $transcriptPath = Join-Path $env:USERPROFILE ".claude/projects/$projectHash/$taskSessionId.jsonl"
+            $tResult = Get-TranscriptContextPeak -TranscriptPath $transcriptPath -StartOffset $transcriptOffset
+            if ($tResult.PeakContext -gt $taskPeakContext) {
+                $taskPeakContext = $tResult.PeakContext
             }
         }
 

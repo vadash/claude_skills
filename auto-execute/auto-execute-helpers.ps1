@@ -291,6 +291,66 @@ function Get-ContextSizeFromEvent {
     return 0
 }
 
+function Get-ClaudeProjectHash {
+    param(
+        [Parameter(Mandatory)]
+        [string]$DirPath
+    )
+
+    return ($DirPath -replace '[^a-zA-Z0-9]', '-')
+}
+
+function Get-TranscriptContextPeak {
+    param(
+        [Parameter(Mandatory)]
+        [string]$TranscriptPath,
+        [long]$StartOffset = 0
+    )
+
+    if (-not (Test-Path $TranscriptPath)) {
+        return @{ PeakContext = 0; BytesRead = $StartOffset }
+    }
+
+    $stream = [System.IO.File]::Open(
+        $TranscriptPath,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::ReadWrite
+    )
+    try {
+        $null = $stream.Seek($StartOffset, [System.IO.SeekOrigin]::Begin)
+        $reader = New-Object System.IO.StreamReader($stream)
+        $content = $reader.ReadToEnd()
+        $endPos = $stream.Position
+    } finally {
+        $stream.Close()
+    }
+
+    $peakContext = 0
+    foreach ($line in ($content -split "`n")) {
+        $trimmed = $line.Trim()
+        if ($trimmed -eq "") { continue }
+        try {
+            $entry = $trimmed | ConvertFrom-Json
+            $usage = $null
+            if ($entry.message -and $entry.message.usage) {
+                $usage = $entry.message.usage
+            }
+            if ($usage) {
+                $in = if ($null -ne $usage.input_tokens) { [int]$usage.input_tokens } else { 0 }
+                $cacheRead = if ($null -ne $usage.cache_read_input_tokens) { [int]$usage.cache_read_input_tokens } else { 0 }
+                $cacheCreate = if ($null -ne $usage.cache_creation_input_tokens) { [int]$usage.cache_creation_input_tokens } else { 0 }
+                $ctx = $in + $cacheRead + $cacheCreate
+                if ($ctx -gt $peakContext) { $peakContext = $ctx }
+            }
+        } catch {
+            # Skip invalid JSON lines
+        }
+    }
+
+    return @{ PeakContext = $peakContext; BytesRead = $endPos }
+}
+
 function Format-ContextSize {
     param(
         [int]$Tokens

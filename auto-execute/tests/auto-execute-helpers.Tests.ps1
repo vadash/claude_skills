@@ -959,3 +959,127 @@ Describe "Resolve-PlanPath" {
             Should -Throw "*No plan matching*"
     }
 }
+
+Describe "Get-ClaudeProjectHash" {
+    It "converts a Windows path to Claude project hash" {
+        Get-ClaudeProjectHash -DirPath 'C:\projects\test_project' | Should -Be 'C--projects-test-project'
+    }
+
+    It "converts path with dots" {
+        Get-ClaudeProjectHash -DirPath 'C:\Users\vadash\.claude\skills' | Should -Be 'C--Users-vadash--claude-skills'
+    }
+
+    It "converts a simple path" {
+        Get-ClaudeProjectHash -DirPath 'C:\temp' | Should -Be 'C--temp'
+    }
+
+    It "converts forward-slash paths" {
+        Get-ClaudeProjectHash -DirPath 'C:/projects/myapp' | Should -Be 'C--projects-myapp'
+    }
+
+    It "handles path with underscores" {
+        Get-ClaudeProjectHash -DirPath 'C:\my_project' | Should -Be 'C--my-project'
+    }
+}
+
+Describe "Get-TranscriptContextPeak" {
+    BeforeEach {
+        $script:tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-transcript-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
+    }
+
+    AfterEach {
+        Remove-Item -Path $script:tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "returns peak context from transcript with real usage data" {
+        $transcriptPath = Join-Path $script:tempDir "test.jsonl"
+        $lines = @(
+            '{"type":"user","message":{"usage":{"input_tokens":0,"output_tokens":0}}}'
+            '{"type":"assistant","message":{"usage":{"input_tokens":274,"cache_creation_input_tokens":0,"cache_read_input_tokens":16387,"output_tokens":436}}}'
+            '{"type":"user","message":{"usage":{"input_tokens":0,"output_tokens":0}}}'
+            '{"type":"assistant","message":{"usage":{"input_tokens":458,"cache_creation_input_tokens":0,"cache_read_input_tokens":16660,"output_tokens":68}}}'
+            '{"type":"assistant","message":{"usage":{"input_tokens":538,"cache_creation_input_tokens":0,"cache_read_input_tokens":17117,"output_tokens":231}}}'
+        )
+        $lines -join "`n" | Set-Content $transcriptPath -NoNewline
+
+        $result = Get-TranscriptContextPeak -TranscriptPath $transcriptPath
+        # Peak = 538 + 17117 = 17655
+        $result.PeakContext | Should -Be 17655
+        $result.BytesRead | Should -BeGreaterThan 0
+    }
+
+    It "returns 0 for non-existent file" {
+        $result = Get-TranscriptContextPeak -TranscriptPath (Join-Path $script:tempDir "nope.jsonl")
+        $result.PeakContext | Should -Be 0
+        $result.BytesRead | Should -Be 0
+    }
+
+    It "returns 0 for entries with zero tokens" {
+        $transcriptPath = Join-Path $script:tempDir "zeros.jsonl"
+        $lines = @(
+            '{"type":"assistant","message":{"usage":{"input_tokens":0,"output_tokens":0}}}'
+            '{"type":"assistant","message":{"usage":{"input_tokens":0,"output_tokens":0}}}'
+        )
+        $lines -join "`n" | Set-Content $transcriptPath -NoNewline
+
+        $result = Get-TranscriptContextPeak -TranscriptPath $transcriptPath
+        $result.PeakContext | Should -Be 0
+    }
+
+    It "supports incremental reads via StartOffset" {
+        $transcriptPath = Join-Path $script:tempDir "incremental.jsonl"
+        $line1 = '{"type":"assistant","message":{"usage":{"input_tokens":100,"cache_creation_input_tokens":0,"cache_read_input_tokens":5000,"output_tokens":50}}}'
+        $line2 = '{"type":"assistant","message":{"usage":{"input_tokens":200,"cache_creation_input_tokens":0,"cache_read_input_tokens":10000,"output_tokens":50}}}'
+
+        # Write first line
+        "$line1`n" | Set-Content $transcriptPath -NoNewline
+        $result1 = Get-TranscriptContextPeak -TranscriptPath $transcriptPath
+        $result1.PeakContext | Should -Be 5100   # 100 + 5000
+        $offset = $result1.BytesRead
+
+        # Append second line
+        [System.IO.File]::AppendAllText($transcriptPath, "$line2`n")
+        $result2 = Get-TranscriptContextPeak -TranscriptPath $transcriptPath -StartOffset $offset
+        $result2.PeakContext | Should -Be 10200  # 200 + 10000
+
+        # First read's peak is not seen again
+        $result2.BytesRead | Should -BeGreaterThan $offset
+    }
+
+    It "includes cache_creation_input_tokens in context size" {
+        $transcriptPath = Join-Path $script:tempDir "cache-create.jsonl"
+        $line = '{"type":"assistant","message":{"usage":{"input_tokens":300,"cache_creation_input_tokens":5000,"cache_read_input_tokens":2000,"output_tokens":50}}}'
+        $line | Set-Content $transcriptPath -NoNewline
+
+        $result = Get-TranscriptContextPeak -TranscriptPath $transcriptPath
+        # 300 + 5000 + 2000 = 7300
+        $result.PeakContext | Should -Be 7300
+    }
+
+    It "skips entries without message.usage" {
+        $transcriptPath = Join-Path $script:tempDir "mixed.jsonl"
+        $lines = @(
+            '{"type":"queue-operation","operation":"enqueue"}'
+            '{"type":"assistant","message":{"usage":{"input_tokens":100,"cache_creation_input_tokens":0,"cache_read_input_tokens":8000,"output_tokens":50}}}'
+            '{"type":"system","subtype":"init","session_id":"abc"}'
+        )
+        $lines -join "`n" | Set-Content $transcriptPath -NoNewline
+
+        $result = Get-TranscriptContextPeak -TranscriptPath $transcriptPath
+        $result.PeakContext | Should -Be 8100  # 100 + 8000
+    }
+
+    It "handles invalid JSON lines gracefully" {
+        $transcriptPath = Join-Path $script:tempDir "bad.jsonl"
+        $lines = @(
+            'not valid json at all'
+            '{"type":"assistant","message":{"usage":{"input_tokens":500,"cache_creation_input_tokens":0,"cache_read_input_tokens":3000,"output_tokens":50}}}'
+            '{"truncated json'
+        )
+        $lines -join "`n" | Set-Content $transcriptPath -NoNewline
+
+        $result = Get-TranscriptContextPeak -TranscriptPath $transcriptPath
+        $result.PeakContext | Should -Be 3500  # 500 + 3000
+    }
+}

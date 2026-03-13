@@ -101,7 +101,7 @@ For each unchecked task in the plan:
 4. **Verify** — checks 3 signals: exit code 0, new commit, clean tree
 5. **Decide** — on success advances to next task; on failure stashes dirty state or retries
 
-Each task logs peak context (input_tokens + cache_read) extracted from stream-json events. Result events are excluded because they contain cumulative session totals.
+Each task logs peak context extracted from Claude Code's transcript JSONL file (`~/.claude/projects/<hash>/<session_id>.jsonl`), which contains accurate per-turn usage data including cached tokens. Context size per turn = `input_tokens + cache_read_input_tokens + cache_creation_input_tokens`.
 
 Stops when:
 - All tasks complete
