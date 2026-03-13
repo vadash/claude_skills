@@ -265,3 +265,32 @@ function Format-ToolEvent {
     if ($results.Count -eq 0) { return $null }
     return $results
 }
+
+function Format-TokenMetrics {
+    param(
+        [hashtable]$Metrics
+    )
+
+    if (-not $Metrics -or $Metrics.Total -eq 0) { return "" }
+
+    $fmtNum = {
+        param([double]$n)
+        if ($n -ge 1000000) { return "{0:0.0}M" -f ($n / 1000000) }
+        if ($n -ge 1000) { return "{0:0.0}k" -f ($n / 1000) }
+        return [string][int]$n
+    }
+
+    $inStr = & $fmtNum $Metrics.Input
+    $outStr = & $fmtNum $Metrics.Output
+    $cacheStr = & $fmtNum $Metrics.CacheRead
+    $hitRate = "{0:0.0}" -f $Metrics.HitRate
+
+    $result = " | Tokens: $inStr In, $outStr Out, $cacheStr Cache R ($hitRate% hit)"
+
+    if ($Metrics.CostUSD -gt 0) {
+        $cost = "{0:N2}" -f $Metrics.CostUSD
+        $result += " | " + '$' + $cost
+    }
+
+    return $result
+}

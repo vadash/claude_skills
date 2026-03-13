@@ -395,3 +395,43 @@ Describe "Format-ToolEvent" {
         $result | Should -Match '\.\.\.$'
     }
 }
+
+Describe "Format-TokenMetrics" {
+    It "formats thousands with k suffix" {
+        $metrics = @{ Input=1500; Output=200; CacheRead=10000; CacheWrite=0; Total=11700; HitRate=87.0; CostUSD=0.07 }
+        $result = Format-TokenMetrics -Metrics $metrics
+        $result | Should -Match '1\.5k In'
+        $result | Should -Match '200 Out'
+        $result | Should -Match '10\.0k Cache R'
+        $result | Should -Match '87\.0% hit'
+        $result | Should -Match '\$0\.07'
+    }
+
+    It "formats millions with M suffix" {
+        $metrics = @{ Input=1500000; Output=200; CacheRead=10000; CacheWrite=0; Total=1510200; HitRate=0.7; CostUSD=1.23 }
+        $result = Format-TokenMetrics -Metrics $metrics
+        $result | Should -Match '1\.5M In'
+        $result | Should -Match '200 Out'
+        $result | Should -Match '10\.0k Cache R'
+        $result | Should -Match '0\.7% hit'
+        $result | Should -Match '\$1\.23'
+    }
+
+    It "returns empty string when Total is 0" {
+        $metrics = @{ Input=0; Output=0; CacheRead=0; CacheWrite=0; Total=0; HitRate=0; CostUSD=0 }
+        $result = Format-TokenMetrics -Metrics $metrics
+        $result | Should -Be ""
+    }
+
+    It "omits cost portion when CostUSD is 0" {
+        $metrics = @{ Input=1500; Output=200; CacheRead=10000; CacheWrite=0; Total=11700; HitRate=87.0; CostUSD=0 }
+        $result = Format-TokenMetrics -Metrics $metrics
+        $result | Should -Match 'Tokens:'
+        $result | Should -Not -Match '\$'
+    }
+
+    It "returns empty string for null metrics" {
+        $result = Format-TokenMetrics -Metrics $null
+        $result | Should -Be ""
+    }
+}
