@@ -15,7 +15,16 @@ Three components, all gated by `AXE_ACTIVE` environment variable:
 ## Running
 
 ```powershell
-# Execute all remaining tasks in a plan
+# One-time install (adds to PATH, creates .cmd shim)
+.\install.ps1
+
+# Execute from any project directory (partial name match)
+auto-execute 2026-03-13-markdown-link-checker claude_stable_ali
+
+# With default claude binary
+auto-execute markdown-link
+
+# Old explicit form still works
 & "path/to/auto-execute.ps1" -Plan "docs/plans/my-plan.md"
 
 # Run tests
