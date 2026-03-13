@@ -167,7 +167,8 @@ function Format-FinalReport {
         [string]$LogFile,
         [string]$TokenString = "",
         [int]$MaxPeakContext = 0,
-        [int]$ContextLimit = 0
+        [int]$ContextLimit = 0,
+        [int]$NextTask = 0
     )
 
     $durationStr = "{0}m {1:D2}s" -f [math]::Floor($TotalDuration.TotalMinutes), $TotalDuration.Seconds
@@ -176,13 +177,18 @@ function Format-FinalReport {
         $ctxLine = "`nMax peak ctx: $(Format-ContextSize $MaxPeakContext)/$(Format-ContextSize $ContextLimit)"
     }
 
+    $resumeHint = ""
+    if ($StopReason -ne "All tasks complete" -and $NextTask -gt 0 -and $NextTask -le $TotalTasks) {
+        $resumeHint = "`n`nTo resume manually:`n  /executing-plans @$PlanPath do task $NextTask"
+    }
+
     return @"
 === Auto-Execute Summary ===
 Plan:       $PlanPath
 Tasks:      $CompletedTasks/$TotalTasks completed
 Duration:   $durationStr$TokenString$ctxLine
 Stop reason: $StopReason
-Logs:       $LogFile
+Logs:       $LogFile$resumeHint
 "@
 }
 

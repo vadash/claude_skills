@@ -319,6 +319,40 @@ Describe "Format-FinalReport" {
             -MaxPeakContext 0 -ContextLimit 70000
         $result | Should -Not -Match 'Max peak ctx'
     }
+
+    It "shows resume hint on failure with NextTask" {
+        $duration = [TimeSpan]::FromSeconds(120)
+        $result = Format-FinalReport -PlanPath "docs/plans/2026-03-13-my-plan.md" `
+            -CompletedTasks 2 -TotalTasks 5 `
+            -TotalDuration $duration `
+            -StopReason "Max failures reached (2 consecutive)" `
+            -LogFile "run.log" `
+            -NextTask 3
+        $result | Should -Match 'To resume manually:'
+        $result | Should -Match '/executing-plans @docs/plans/2026-03-13-my-plan\.md do task 3'
+    }
+
+    It "omits resume hint when all tasks complete" {
+        $duration = [TimeSpan]::FromSeconds(600)
+        $result = Format-FinalReport -PlanPath "docs/plans/test.md" `
+            -CompletedTasks 4 -TotalTasks 4 `
+            -TotalDuration $duration `
+            -StopReason "All tasks complete" `
+            -LogFile "run.log" `
+            -NextTask 5
+        $result | Should -Not -Match 'To resume manually'
+    }
+
+    It "omits resume hint when NextTask exceeds TotalTasks" {
+        $duration = [TimeSpan]::FromSeconds(60)
+        $result = Format-FinalReport -PlanPath "plan.md" `
+            -CompletedTasks 3 -TotalTasks 3 `
+            -TotalDuration $duration `
+            -StopReason "Dirty tree (changes stashed)" `
+            -LogFile "run.log" `
+            -NextTask 4
+        $result | Should -Not -Match 'To resume manually'
+    }
 }
 
 Describe "Read-StreamJsonChunk" {

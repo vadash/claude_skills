@@ -7,7 +7,7 @@ param(
     [Parameter(Position=1)] [string] $ClaudeBin = "claude",
     [int]    $MaxTurns     = 40,
     [int]    $TaskTimeout  = 900,
-    [int]    $ContextLimit = 70000,
+    [int]    $ContextLimit = 100000,
     [int]    $MaxFailures  = 2,
     [int]    $StartTask    = 0,
     [string] $LogDir       = "logs/auto-execute"
@@ -449,6 +449,7 @@ try {
     $report = Format-FinalReport -PlanPath $Plan -CompletedTasks $completedCount `
         -TotalTasks $totalTasks -TotalDuration $overallStart.Elapsed `
         -StopReason $stopReason -LogFile $summaryLogPath -TokenString $overallTokenStr `
-        -MaxPeakContext $overallPeakContext -ContextLimit $ContextLimit
+        -MaxPeakContext $overallPeakContext -ContextLimit $ContextLimit `
+        -NextTask $currentTask
     Write-Host "`n$report" -ForegroundColor Cyan
 }
