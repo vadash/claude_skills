@@ -440,18 +440,18 @@ Describe "Get-ContextSizeFromEvent" {
         $result | Should -Be 3000
     }
 
-    It "returns input_tokens + cache_read from result events" {
+    It "returns 0 for result events (cumulative totals)" {
         $json = '{"type":"result","usage":{"input_tokens":5980,"output_tokens":92,"cache_read_input_tokens":2000}}'
         $event = $json | ConvertFrom-Json
         $result = Get-ContextSizeFromEvent -Event $event
-        $result | Should -Be 7980
+        $result | Should -Be 0
     }
 
-    It "returns input_tokens from result without cache_read" {
+    It "returns 0 from result without cache_read" {
         $json = '{"type":"result","usage":{"input_tokens":5980,"output_tokens":92}}'
         $event = $json | ConvertFrom-Json
         $result = Get-ContextSizeFromEvent -Event $event
-        $result | Should -Be 5980
+        $result | Should -Be 0
     }
 
     It "returns 0 for system events" {

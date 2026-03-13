@@ -279,6 +279,25 @@ try {
 
         if ($null -eq $taskExitCode) { $taskExitCode = $process.ExitCode }
 
+        # Check if run was cancelled via Ctrl+C (caught by event handler OR child process exiting with SIGINT codes)
+        if ($global:AXE_Cancelled -or $taskExitCode -eq 130 -or $taskExitCode -eq 3221225786) {
+            $taskStart.Stop()
+            Write-Host "`n[!] Run cancelled by user." -ForegroundColor Yellow
+            $running = $false
+            $stopReason = "Cancelled by user (Ctrl+C)"
+
+            # Accumulate tokens for the aborted task before breaking
+            $overallMetrics.Input += $taskTokens.Input
+            $overallMetrics.Output += $taskTokens.Output
+            $overallMetrics.CacheRead += $taskTokens.CacheRead
+            $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+            $overallMetrics.CostUSD += $taskTokens.CostUSD
+            if ($taskPeakContext -gt $overallPeakContext) {
+                $overallPeakContext = $taskPeakContext
+            }
+            break
+        }
+
         $taskStart.Stop()
         $taskDuration = $taskStart.Elapsed
 

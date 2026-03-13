@@ -101,11 +101,11 @@ For each unchecked task in the plan:
 4. **Verify** — checks 3 signals: exit code 0, new commit, clean tree
 5. **Decide** — on success advances to next task; on failure stashes dirty state or retries
 
-Each task logs peak context (input_tokens + cache_read) extracted from both assistant and result events.
+Each task logs peak context (input_tokens + cache_read) extracted from `assistant` events only. Result events are excluded because they contain cumulative session totals.
 
 Stops when:
 - All tasks complete
-- Cancelled by user (Ctrl+C) — kills child process cleanly (uses global variables for PowerShell 7 compatibility)
+- Cancelled by user (Ctrl+C) — kills child process cleanly; also detects SIGINT exit codes (130/3221225786) when child swallows the interrupt
 - Consecutive failures hit `-MaxFailures`
 - Dirty tree detected (changes are git-stashed)
 - Timeout exceeded
