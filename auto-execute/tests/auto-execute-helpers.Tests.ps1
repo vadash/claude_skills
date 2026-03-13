@@ -128,43 +128,60 @@ Describe "Test-TaskSuccess" {
     }
 }
 
-Describe "Test-PreFlightChecks" {
+Describe "Test-PreFlightEarly" {
     BeforeEach {
         $script:tempPlan = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
         Set-Content $script:tempPlan.FullName "### Task 1: Test`n- [ ] Step 1: Do it"
-        $script:tempLogDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-logs-$(Get-Random)"
     }
 
     AfterEach {
         Remove-Item $script:tempPlan.FullName -ErrorAction SilentlyContinue
+    }
+
+    It "returns error when CLI binary does not exist" {
+        $errors = Test-PreFlightEarly -ClaudeBin "definitely-not-a-real-command-xyz-123" `
+            -PlanPath $script:tempPlan.FullName
+        ($errors | Where-Object { $_ -match "not found in PATH" }) | Should -Not -BeNullOrEmpty
+    }
+
+    It "returns error when plan file does not exist" {
+        $errors = Test-PreFlightEarly -ClaudeBin "cmd" `
+            -PlanPath "/nonexistent/plan.md"
+        $errors | Should -Contain "Plan file '/nonexistent/plan.md' not found."
+    }
+}
+
+Describe "Test-PreFlightLate" {
+    BeforeEach {
+        $script:tempLogDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-logs-$(Get-Random)"
+    }
+
+    AfterEach {
         if (Test-Path $script:tempLogDir) {
             Remove-Item $script:tempLogDir -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 
-    It "returns error when CLI binary does not exist" {
-        $errors = Test-PreFlightChecks -ClaudeBin "definitely-not-a-real-command-xyz-123" `
-            -PlanPath $script:tempPlan.FullName -LogDir $script:tempLogDir
-        ($errors | Where-Object { $_ -match "not found in PATH" }) | Should -Not -BeNullOrEmpty
-    }
-
-    It "returns error when plan file does not exist" {
-        $errors = Test-PreFlightChecks -ClaudeBin "cmd" `
-            -PlanPath "/nonexistent/plan.md" -LogDir $script:tempLogDir
-        $errors | Should -Contain "Plan file '/nonexistent/plan.md' not found."
-    }
-
     It "returns error when plan has no unchecked tasks" {
-        Set-Content $script:tempPlan.FullName "### Task 1: Done`n- [x] Step 1: Done"
-        $errors = Test-PreFlightChecks -ClaudeBin "cmd" `
-            -PlanPath $script:tempPlan.FullName -LogDir $script:tempLogDir
-        ($errors | Where-Object { $_ -match "no unchecked tasks" }) | Should -Not -BeNullOrEmpty
+        $tempPlan = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
+        try {
+            Set-Content $tempPlan.FullName "### Task 1: Done`n- [x] Step 1: Done"
+            $errors = Test-PreFlightLate -PlanPath $tempPlan.FullName -LogDir $script:tempLogDir
+            ($errors | Where-Object { $_ -match "no unchecked tasks" }) | Should -Not -BeNullOrEmpty
+        } finally {
+            Remove-Item $tempPlan.FullName -ErrorAction SilentlyContinue
+        }
     }
 
     It "creates log directory if it does not exist" {
-        Test-PreFlightChecks -ClaudeBin "cmd" `
-            -PlanPath $script:tempPlan.FullName -LogDir $script:tempLogDir | Out-Null
-        Test-Path $script:tempLogDir | Should -BeTrue
+        $tempPlan = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
+        try {
+            Set-Content $tempPlan.FullName "### Task 1: Test`n- [ ] Step 1: Do it"
+            Test-PreFlightLate -PlanPath $tempPlan.FullName -LogDir $script:tempLogDir | Out-Null
+            Test-Path $script:tempLogDir | Should -BeTrue
+        } finally {
+            Remove-Item $tempPlan.FullName -ErrorAction SilentlyContinue
+        }
     }
 }
 

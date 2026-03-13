@@ -59,11 +59,10 @@ function Test-TaskSuccess {
     return $signals
 }
 
-function Test-PreFlightChecks {
+function Test-PreFlightEarly {
     param(
         [string]$ClaudeBin,
-        [string]$PlanPath,
-        [string]$LogDir
+        [string]$PlanPath
     )
 
     $errors = @()
@@ -73,14 +72,9 @@ function Test-PreFlightChecks {
         $errors += "CLI binary '$ClaudeBin' not found in PATH."
     }
 
-    # Check plan file exists and has unchecked tasks
+    # Check plan file exists
     if (-not (Test-Path $PlanPath)) {
         $errors += "Plan file '$PlanPath' not found."
-    } else {
-        $content = Get-Content $PlanPath -Raw
-        if ($content -notmatch '\-\s*\[\s\]') {
-            $errors += "Plan file has no unchecked tasks (no '- [ ]' found)."
-        }
     }
 
     # Check git repo
@@ -93,6 +87,25 @@ function Test-PreFlightChecks {
     $status = git status --porcelain 2>&1
     if ($status) {
         $errors += "Git working tree is not clean."
+    }
+
+    return $errors
+}
+
+function Test-PreFlightLate {
+    param(
+        [string]$PlanPath,
+        [string]$LogDir
+    )
+
+    $errors = @()
+
+    # Check plan has unchecked tasks
+    if (Test-Path $PlanPath) {
+        $content = Get-Content $PlanPath -Raw
+        if ($content -notmatch '\-\s*\[\s\]') {
+            $errors += "Plan file has no unchecked tasks (no '- [ ]' found)."
+        }
     }
 
     # Check/create log directory

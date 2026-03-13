@@ -8,7 +8,7 @@ Three components, all gated by `AXE_ACTIVE` environment variable:
 
 | Component | Entry Point | Role |
 |-----------|-------------|------|
-| **Wrapper** | `auto-execute.ps1` | Outer loop: pre-flight, launch Claude per task, verify 3 signals (exit code, new commit, clean tree) |
+| **Wrapper** | `auto-execute.ps1` | Outer loop: pre-flight (early/late), hook auto-installer, launch Claude per task, verify 3 signals (exit code, new commit, clean tree) |
 | **Skill** | `SKILL.md` | Per-task headless behavior: TDD cycle, commit, structured exit output |
 | **Hooks** | `.claude/hooks/` | Real-time safety: context limit, loop detection |
 
@@ -24,7 +24,9 @@ Invoke-Pester -Path tests/ -Output Detailed
 
 ## Safety Guards
 
-- **Pre-flight**: CLI exists, plan has unchecked tasks, git tree clean
+- **Pre-flight (early)**: CLI exists, plan file exists, git tree clean
+- **Hook auto-installer**: Installs/updates safety hooks in target project
+- **Pre-flight (late)**: Plan has unchecked tasks, log directory ready
 - **Per-task timeout**: Kill process after N seconds (default 900)
 - **Post-task verification**: Exit code 0, new commit, clean tree
 - **Hooks**: Block tools on context overflow or repeated identical calls

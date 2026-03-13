@@ -16,8 +16,47 @@ param(
 # Dot-source helper functions
 . "$PSScriptRoot/auto-execute-helpers.ps1"
 
-# --- Phase 1: Pre-flight Checks ---
-$errors = Test-PreFlightChecks -ClaudeBin $ClaudeBin -PlanPath $Plan -LogDir $LogDir
+# --- Phase 1a: Pre-flight (before hooks) ---
+$errors = Test-PreFlightEarly -ClaudeBin $ClaudeBin -PlanPath $Plan
+if ($errors.Count -gt 0) {
+    Write-Host "Pre-flight checks failed:" -ForegroundColor Red
+    $errors | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+    exit 1
+}
+
+# --- Phase 1.5: Hook Auto-Installer ---
+$gitRoot = (git rev-parse --show-toplevel 2>&1).ToString().Trim()
+$hookStatus = Get-ProjectHooksStatus -SourceDir $PSScriptRoot -GitRoot $gitRoot
+
+switch ($hookStatus) {
+    'Missing' {
+        Write-Host "[NOTICE] Safety hooks not installed in this project." -ForegroundColor Yellow
+        $response = Read-Host "Install them? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($response) -or $response -match '^[Yy]') {
+            Install-ProjectHooks -SourceDir $PSScriptRoot -GitRoot $gitRoot
+            Push-Location $gitRoot
+            git add .claude/hooks/ .claude/settings.json
+            git commit -m "chore: add axe safety hooks"
+            Pop-Location
+            Write-Host "Hooks installed." -ForegroundColor Green
+        } else {
+            Write-Host "WARNING: Running without safety hooks!" -ForegroundColor Red
+            Start-Sleep 2
+        }
+    }
+    'Outdated' {
+        Install-ProjectHooks -SourceDir $PSScriptRoot -GitRoot $gitRoot
+        Push-Location $gitRoot
+        git add .claude/hooks/ .claude/settings.json
+        git commit -m "chore: update axe safety hooks"
+        Pop-Location
+        Write-Host "Safety hooks updated to latest version." -ForegroundColor Cyan
+    }
+    'Ok' { }
+}
+
+# --- Phase 1b: Pre-flight (after hooks) ---
+$errors = Test-PreFlightLate -PlanPath $Plan -LogDir $LogDir
 if ($errors.Count -gt 0) {
     Write-Host "Pre-flight checks failed:" -ForegroundColor Red
     $errors | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
@@ -25,15 +64,12 @@ if ($errors.Count -gt 0) {
 }
 
 # Warn if LogDir is not in .gitignore
-$gitRoot = git rev-parse --show-toplevel 2>$null
-if ($gitRoot) {
-    $gitignorePath = Join-Path $gitRoot ".gitignore"
-    if (Test-Path $gitignorePath) {
-        $gitignoreContent = Get-Content $gitignorePath -Raw
-        $logDirBase = ($LogDir -split '[/\\]')[0]
-        if ($gitignoreContent -notmatch [regex]::Escape($logDirBase)) {
-            Write-Host "WARNING: '$logDirBase/' is not in .gitignore. Logs may be committed." -ForegroundColor Yellow
-        }
+$gitignorePath = Join-Path $gitRoot ".gitignore"
+if (Test-Path $gitignorePath) {
+    $gitignoreContent = Get-Content $gitignorePath -Raw
+    $logDirBase = ($LogDir -split '[/\\]')[0]
+    if ($gitignoreContent -notmatch [regex]::Escape($logDirBase)) {
+        Write-Host "WARNING: '$logDirBase/' is not in .gitignore. Logs may be committed." -ForegroundColor Yellow
     }
 }
 
