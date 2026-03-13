@@ -165,6 +165,10 @@ try { $originalTreatCtrlC = [Console]::TreatControlCAsInput; [Console]::TreatCon
 
 Write-Host "Press Ctrl+C, Escape, or Q to cancel a running task." -ForegroundColor DarkGray
 
+# Create an empty temp file for stdin redirect (PowerShell resolves "NUL" as a real
+# file path and fails; an actual empty file works reliably across all PS versions)
+$emptyStdinPath = [System.IO.Path]::GetTempFileName()
+
 try {
     while ($running -and $currentTask -le $totalTasks) {
         # Record baseline
@@ -192,7 +196,7 @@ try {
         $process = Start-Process -FilePath $claudeCmd `
             -ArgumentList $argString `
             -PassThru -NoNewWindow `
-            -RedirectStandardInput "NUL" `
+            -RedirectStandardInput $emptyStdinPath `
             -RedirectStandardOutput $taskLogPath `
             -RedirectStandardError "$taskLogPath.err"
         [AxeCtrlC]::ChildPid = $process.Id
@@ -480,6 +484,11 @@ try {
     $env:AXE_ACTIVE = $null
     $env:AXE_CONTEXT_LIMIT = $null
     $overallStart.Stop()
+
+    # Clean up temp stdin file
+    if ($emptyStdinPath -and (Test-Path $emptyStdinPath)) {
+        Remove-Item $emptyStdinPath -Force -ErrorAction SilentlyContinue
+    }
 
     # Clean up temp counter files
     Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
