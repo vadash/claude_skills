@@ -581,3 +581,79 @@ Describe "Compare-NormalizedFileContent" {
         Compare-NormalizedFileContent -PathA $fileA -PathB $fileB | Should -BeFalse
     }
 }
+
+Describe "Get-ProjectHooksStatus" {
+    BeforeEach {
+        $script:sourceDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-source-$(Get-Random)"
+        $script:gitRoot = Join-Path ([System.IO.Path]::GetTempPath()) "pester-project-$(Get-Random)"
+
+        # Create source hooks
+        New-Item -ItemType Directory -Path (Join-Path $script:sourceDir ".claude/hooks") -Force | Out-Null
+        [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1"), "# context check v1")
+        [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1"), "# loop detect v1")
+    }
+
+    AfterEach {
+        Remove-Item -Path $script:sourceDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $script:gitRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "returns 'Missing' when no hooks directory exists" {
+        New-Item -ItemType Directory -Path $script:gitRoot -Force | Out-Null
+        Get-ProjectHooksStatus -SourceDir $script:sourceDir -GitRoot $script:gitRoot | Should -Be 'Missing'
+    }
+
+    It "returns 'Missing' when hook files exist but no settings.json" {
+        $hooksDir = Join-Path $script:gitRoot ".claude/hooks"
+        New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
+        Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1") $hooksDir
+        Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1") $hooksDir
+        Get-ProjectHooksStatus -SourceDir $script:sourceDir -GitRoot $script:gitRoot | Should -Be 'Missing'
+    }
+
+    It "returns 'Outdated' when files exist with settings but content differs" {
+        $hooksDir = Join-Path $script:gitRoot ".claude/hooks"
+        New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
+        [System.IO.File]::WriteAllText((Join-Path $hooksDir "axe-context-check.ps1"), "# old version")
+        [System.IO.File]::WriteAllText((Join-Path $hooksDir "axe-loop-detect.ps1"), "# loop detect v1")
+        $settings = @{
+            hooks = @{
+                PreToolUse = @(
+                    @{
+                        matcher = "*"
+                        hooks = @(
+                            @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-context-check.ps1" }
+                            @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-loop-detect.ps1" }
+                        )
+                    }
+                )
+            }
+        }
+        $settingsPath = Join-Path $script:gitRoot ".claude/settings.json"
+        $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath
+        Get-ProjectHooksStatus -SourceDir $script:sourceDir -GitRoot $script:gitRoot | Should -Be 'Outdated'
+    }
+
+    It "returns 'Ok' when everything matches" {
+        $hooksDir = Join-Path $script:gitRoot ".claude/hooks"
+        New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
+        Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1") $hooksDir
+        Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1") $hooksDir
+        $settings = @{
+            hooks = @{
+                PreToolUse = @(
+                    @{
+                        matcher = "*"
+                        hooks = @(
+                            @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-context-check.ps1" }
+                            @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-loop-detect.ps1" }
+                        )
+                    }
+                )
+            }
+        }
+        $settingsPath = Join-Path $script:gitRoot ".claude/settings.json"
+        $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath
+        Get-ProjectHooksStatus -SourceDir $script:sourceDir -GitRoot $script:gitRoot | Should -Be 'Ok'
+    }
+}

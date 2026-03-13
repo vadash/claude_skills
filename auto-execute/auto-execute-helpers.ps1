@@ -249,6 +249,49 @@ function Compare-NormalizedFileContent {
     return $contentA -eq $contentB
 }
 
+function Get-ProjectHooksStatus {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourceDir,
+        [Parameter(Mandatory)]
+        [string]$GitRoot
+    )
+
+    $hookNames = @("axe-context-check.ps1", "axe-loop-detect.ps1")
+    $projectHooksDir = Join-Path $GitRoot ".claude/hooks"
+    $settingsPath = Join-Path $GitRoot ".claude/settings.json"
+
+    # Check if all hook files exist
+    foreach ($hook in $hookNames) {
+        $projectPath = Join-Path $projectHooksDir $hook
+        if (-not (Test-Path $projectPath)) {
+            return 'Missing'
+        }
+    }
+
+    # Check settings.json exists and references both hooks
+    if (-not (Test-Path $settingsPath)) {
+        return 'Missing'
+    }
+    $settingsContent = Get-Content $settingsPath -Raw
+    foreach ($hook in $hookNames) {
+        if ($settingsContent -notmatch [regex]::Escape($hook)) {
+            return 'Missing'
+        }
+    }
+
+    # Content-compare each hook against source
+    foreach ($hook in $hookNames) {
+        $sourcePath = Join-Path $SourceDir ".claude/hooks/$hook"
+        $projectPath = Join-Path $projectHooksDir $hook
+        if (-not (Compare-NormalizedFileContent -PathA $sourcePath -PathB $projectPath)) {
+            return 'Outdated'
+        }
+    }
+
+    return 'Ok'
+}
+
 function Format-ToolEvent {
     param(
         [PSObject]$Event
