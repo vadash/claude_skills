@@ -31,13 +31,9 @@ function Test-ContextLimit {
     }
 
     # Estimate tokens: file bytes / 4 (O(1) heuristic)
-    $fileSize = (Get-Item $transcriptPath).Length
-    $estimatedTokens = [math]::Floor($fileSize / 4)
-
-    if ($estimatedTokens -gt $limit) {
-        $msg = "CONTEXT LIMIT EXCEEDED (~$estimatedTokens tokens > $limit). DO NOT RETRY. Output '[AUTO-EXECUTE] Task N FAILED. Reason: context limit' and stop immediately."
-        return @{ ExitCode = 2; Message = $msg }
-    }
+    # Context limit enforcement is now handled accurately in real-time by the auto-execute.ps1
+    # wrapper loop using stream-json token counts.
+    # This hook remains as a no-op to prevent breaking existing settings.json registrations.
 
     return @{ ExitCode = 0; Message = $null }
 }

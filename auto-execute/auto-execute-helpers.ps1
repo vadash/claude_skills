@@ -266,11 +266,20 @@ function Get-ContextSizeFromEvent {
         [PSObject]$Event
     )
 
-    # Only extract from assistant events (per-turn context).
-    # The result event contains cumulative session totals, which falsely inflates peak context.
-    if ($Event.type -eq "assistant" -and $Event.message -and $Event.message.usage) {
+    # Exclude result events which contain cumulative session totals
+    if ($Event.type -eq "result") { return 0 }
+
+    $usage = $null
+    if ($null -ne $Event.message -and $null -ne $Event.message.usage) {
         $usage = $Event.message.usage
-        return [int]$usage.input_tokens + [int]$usage.cache_read_input_tokens
+    } elseif ($null -ne $Event.usage) {
+        $usage = $Event.usage
+    }
+
+    if ($null -ne $usage) {
+        $in = if ($null -ne $usage.input_tokens) { [int]$usage.input_tokens } else { 0 }
+        $cache = if ($null -ne $usage.cache_read_input_tokens) { [int]$usage.cache_read_input_tokens } else { 0 }
+        return $in + $cache
     }
 
     return 0

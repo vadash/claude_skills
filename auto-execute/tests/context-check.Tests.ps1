@@ -38,7 +38,7 @@ Describe "Test-ContextLimit" {
         }
     }
 
-    It "returns ExitCode 2 with message when transcript exceeds limit" {
+    It "returns ExitCode 0 even when transcript is large (logic moved to wrapper)" {
         $tempFile = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
         try {
             # 400000 bytes -> ~100000 tokens, over 70000
@@ -46,15 +46,13 @@ Describe "Test-ContextLimit" {
             $json = @{ transcript_path = $tempFile.FullName } | ConvertTo-Json
 
             $result = Test-ContextLimit -RawInput $json -AxeActive 'true' -ContextLimitValue '70000'
-            $result.ExitCode | Should -Be 2
-            $result.Message | Should -Match 'CONTEXT LIMIT EXCEEDED'
-            $result.Message | Should -Match 'DO NOT RETRY'
+            $result.ExitCode | Should -Be 0
         } finally {
             Remove-Item $tempFile.FullName -ErrorAction SilentlyContinue
         }
     }
 
-    It "uses custom limit from ContextLimitValue parameter" {
+    It "returns ExitCode 0 with custom limit (enforcement moved to wrapper)" {
         $tempFile = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
         try {
             # 100 bytes -> ~25 tokens, over a limit of 10
@@ -62,7 +60,7 @@ Describe "Test-ContextLimit" {
             $json = @{ transcript_path = $tempFile.FullName } | ConvertTo-Json
 
             $result = Test-ContextLimit -RawInput $json -AxeActive 'true' -ContextLimitValue '10'
-            $result.ExitCode | Should -Be 2
+            $result.ExitCode | Should -Be 0
         } finally {
             Remove-Item $tempFile.FullName -ErrorAction SilentlyContinue
         }

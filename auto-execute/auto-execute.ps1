@@ -250,6 +250,16 @@ try {
                             $taskPeakContext = $ctxSize
                         }
 
+                        # Active Context Limit Enforcement
+                        if ($ContextLimit -gt 0 -and $taskPeakContext -gt $ContextLimit) {
+                            Write-Host "`n[CONTEXT LIMIT] Task $currentTask exceeded context limit: $(Format-ContextSize $taskPeakContext) > $(Format-ContextSize $ContextLimit)." -ForegroundColor Red
+                            & taskkill /F /T /PID $process.Id 2>$null | Out-Null
+                            $taskExitCode = 2
+                            $exited = $true
+                            $stopReason = "Context limit exceeded ($taskPeakContext > $ContextLimit)"
+                            break
+                        }
+
                         # Authoritative result event overwrites accumulated tokens
                         $cost = Get-CostFromEvent -Event $event
                         if ($null -ne $cost) {
@@ -344,7 +354,13 @@ try {
             if (-not $signals.ExitOk)    { $failReasons += "exit code $taskExitCode" }
             if (-not $signals.NewCommit) { $failReasons += "no new commit" }
             if (-not $signals.CleanTree) { $failReasons += "dirty tree" }
-            $failReason = $failReasons -join ", "
+
+            if ($stopReason -match "^Context limit") {
+                $failReason = $stopReason
+                $running = $false
+            } else {
+                $failReason = $failReasons -join ", "
+            }
 
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
                 -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr `

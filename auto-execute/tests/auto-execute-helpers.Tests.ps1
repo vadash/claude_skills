@@ -467,6 +467,27 @@ Describe "Get-ContextSizeFromEvent" {
         $result = Get-ContextSizeFromEvent -Event $event
         $result | Should -Be 0
     }
+
+    It "returns tokens from root-level usage (non-assistant event)" {
+        $json = '{"type":"content_block_delta","usage":{"input_tokens":4000,"output_tokens":10,"cache_read_input_tokens":1000}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 5000
+    }
+
+    It "handles missing cache_read_input_tokens in usage" {
+        $json = '{"type":"assistant","message":{"usage":{"input_tokens":3000,"output_tokens":50}}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 3000
+    }
+
+    It "handles missing input_tokens in usage" {
+        $json = '{"type":"assistant","message":{"usage":{"output_tokens":50,"cache_read_input_tokens":2000}}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 2000
+    }
 }
 
 Describe "Format-ContextSize" {
