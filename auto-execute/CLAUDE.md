@@ -37,7 +37,9 @@ Invoke-Pester -Path tests/ -Output Detailed
 - **Hook auto-installer**: Installs/updates safety hooks in target project
 - **Pre-flight (late)**: Plan has unchecked tasks, log directory ready
 - **Gitignore enforcement**: Auto-adds `logs/` to `.gitignore` and commits if missing (prevents dirty-tree false positives from script's own log files)
+- **Ctrl+C handling**: `[Console]::CancelKeyPress` handler kills child process cleanly, reports partial progress
 - **Per-task timeout**: Kill process after N seconds (default 900)
+- **Context tracking**: Tracks peak context (input_tokens + cache_read) per task; shows in task log and summary
 - **Post-task verification**: Exit code 0, new commit, clean tree
 - **Hooks**: Block tools on context overflow or repeated identical calls
 - **Failure limit**: Stop after N consecutive failures (default 2)

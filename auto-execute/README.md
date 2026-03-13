@@ -97,12 +97,13 @@ For each unchecked task in the plan:
 
 1. **Pre-flight** — verifies clean git tree, plan file exists, CLI available, installs/updates safety hooks if needed, ensures `logs/` is in `.gitignore`
 2. **Launch** — runs `claude -p "/auto-execute @plan.md do task N" --dangerously-skip-permissions`
-3. **Monitor** — tails output in real-time, enforces timeout
+3. **Monitor** — tails output in real-time, tracks peak context usage per task, enforces timeout
 4. **Verify** — checks 3 signals: exit code 0, new commit, clean tree
 5. **Decide** — on success advances to next task; on failure stashes dirty state or retries
 
 Stops when:
 - All tasks complete
+- Cancelled by user (Ctrl+C) — kills child process cleanly
 - Consecutive failures hit `-MaxFailures`
 - Dirty tree detected (changes are git-stashed)
 - Timeout exceeded
@@ -165,7 +166,9 @@ Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\auto-exec
   README.md                              # this file
   SKILL.md                               # Claude Code skill definition
   auto-execute.ps1                       # main wrapper script
+  auto-execute.cmd                       # .cmd shim for PATH usage
   auto-execute-helpers.ps1               # pure helper functions
+  install.ps1                            # one-time installer (adds to PATH)
   .claude/
     settings.json                        # hook registration (copy to target repo)
     hooks/
@@ -176,6 +179,7 @@ Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\auto-exec
     context-check.Tests.ps1              # context hook tests
     loop-detect.Tests.ps1                # loop detection tests
     auto-execute-helpers.Tests.ps1       # helper function tests
+    install.Tests.ps1                    # installer tests
   docs/
     designs/2026-03-13-auto-execute.md   # design document
     plans/2026-03-13-auto-execute.md     # implementation plan
