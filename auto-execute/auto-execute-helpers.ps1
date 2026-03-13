@@ -123,7 +123,8 @@ function Format-TaskLogEntry {
         [bool]$Passed,
         [string]$CommitHash,
         [TimeSpan]$Duration,
-        [string]$FailReason
+        [string]$FailReason,
+        [string]$TokenString = ""
     )
 
     $timestamp = Get-Date -Format "HH:mm:ss"
@@ -131,9 +132,9 @@ function Format-TaskLogEntry {
 
     if ($Passed) {
         $shortHash = if ($CommitHash.Length -ge 7) { $CommitHash.Substring(0, 7) } else { $CommitHash }
-        return "[$timestamp] Task ${TaskNumber}: PASS (commit $shortHash, $durationStr)"
+        return "[$timestamp] Task ${TaskNumber}: PASS (commit $shortHash, $durationStr)$TokenString"
     } else {
-        return "[$timestamp] Task ${TaskNumber}: FAIL ($FailReason) — STOPPED"
+        return "[$timestamp] Task ${TaskNumber}: FAIL ($FailReason) — STOPPED$TokenString"
     }
 }
 

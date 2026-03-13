@@ -198,6 +198,24 @@ Describe "Format-TaskLogEntry" {
         $result = Format-TaskLogEntry -TaskNumber 1 -Passed $true -CommitHash "abc1234" -Duration $duration
         $result | Should -Match '0m 00s'
     }
+
+    It "appends token string to passing entry" {
+        $duration = [TimeSpan]::FromSeconds(135)
+        $tokenStr = " | Tokens: 45.2k In, 3.1k Out, 38.0k Cache R (84.1% hit) | `$0.07"
+        $result = Format-TaskLogEntry -TaskNumber 1 -Passed $true -CommitHash "abc1234def" -Duration $duration -TokenString $tokenStr
+        $result | Should -Match 'PASS'
+        $result | Should -Match '84\.1% hit'
+        $result | Should -Match '\$0\.07'
+    }
+
+    It "appends token string to failing entry" {
+        $duration = [TimeSpan]::FromSeconds(45)
+        $tokenStr = " | Tokens: 10.0k In, 1.0k Out, 8.0k Cache R (44.4% hit) | `$0.52"
+        $result = Format-TaskLogEntry -TaskNumber 2 -Passed $false -Duration $duration -FailReason "no new commit" -TokenString $tokenStr
+        $result | Should -Match 'FAIL'
+        $result | Should -Match 'Tokens:'
+        $result | Should -Match '\$0\.52'
+    }
 }
 
 Describe "Format-FinalReport" {
