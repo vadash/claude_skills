@@ -10,12 +10,7 @@ Describe "install.ps1" {
         $script:cmdShim = Join-Path $script:skillDir "auto-execute.cmd"
     }
 
-    AfterAll {
-        # Clean up generated shim if test created it
-        if (Test-Path $script:cmdShim) {
-            Remove-Item $script:cmdShim -Force -ErrorAction SilentlyContinue
-        }
-    }
+    # Do NOT delete auto-execute.cmd — it is a tracked repo file.
 
     It "creates auto-execute.cmd shim" {
         # Run install.ps1 in a child process so it doesn't modify our PATH
