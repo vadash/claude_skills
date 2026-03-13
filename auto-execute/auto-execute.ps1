@@ -83,7 +83,7 @@ try {
         # Resolve full path to handle .cmd/.ps1 extensions
         $claudeCmd = (Get-Command $ClaudeBin).Source
         $promptText = "/auto-execute @$Plan do task $currentTask"
-        $claudeArgs = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns --no-color"
+        $claudeArgs = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns"
 
         # .ps1 scripts can't be launched directly by Start-Process; wrap with powershell
         if ($claudeCmd -like '*.ps1') {
