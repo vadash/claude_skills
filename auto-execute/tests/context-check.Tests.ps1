@@ -1,5 +1,5 @@
 BeforeAll {
-    . "$PSScriptRoot/../.claude/hooks/context-check.ps1"
+    . "$PSScriptRoot/../.claude/hooks/axe-context-check.ps1"
 }
 
 Describe "Test-ContextLimit" {

@@ -6,11 +6,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/context-check.ps1"
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-context-check.ps1"
           },
           {
             "type": "command",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/loop-detect.ps1"
+            "command": "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-loop-detect.ps1"
           }
         ]
       }

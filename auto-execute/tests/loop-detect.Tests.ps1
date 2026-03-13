@@ -1,5 +1,5 @@
 BeforeAll {
-    . "$PSScriptRoot/../.claude/hooks/loop-detect.ps1"
+    . "$PSScriptRoot/../.claude/hooks/axe-loop-detect.ps1"
 }
 
 Describe "Get-InputHash" {
