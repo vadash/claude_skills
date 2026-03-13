@@ -123,15 +123,16 @@ $stopReason = "Unknown"
 $overallMetrics = @{ Input=0; Output=0; CacheRead=0; CacheWrite=0; Total=0; HitRate=0; CostUSD=0 }
 $overallPeakContext = 0
 
-# Ctrl+C handler — sets flag and kills child process for clean shutdown
-$script:cancelled = $false
-$script:childProcess = $null
+# Ctrl+C handler — uses global variable for cross-scope visibility in PS 7
+# The script block runs in a different scope, so $script: vars don't work reliably
+$global:AXE_Cancelled = $false
+$global:AXE_ChildProcess = $null
 $cancelHandler = [System.ConsoleCancelEventHandler]{
     param($sender, $e)
     $e.Cancel = $true   # prevent immediate exit, let finally block run
-    $script:cancelled = $true
-    if ($script:childProcess -and -not $script:childProcess.HasExited) {
-        & taskkill /F /T /PID $script:childProcess.Id 2>$null | Out-Null
+    $global:AXE_Cancelled = $true
+    if ($global:AXE_ChildProcess -and -not $global:AXE_ChildProcess.HasExited) {
+        & taskkill /F /T /PID $global:AXE_ChildProcess.Id 2>$null | Out-Null
     }
 }
 [Console]::add_CancelKeyPress($cancelHandler)
@@ -165,7 +166,7 @@ try {
             -PassThru -NoNewWindow `
             -RedirectStandardOutput $taskLogPath `
             -RedirectStandardError "$taskLogPath.err"
-        $script:childProcess = $process
+        $global:AXE_ChildProcess = $process
 
         # Tail the log file with stream-json parsing
         $taskExitCode = $null
@@ -178,7 +179,7 @@ try {
 
         while (-not $exited) {
             # Check for Ctrl+C cancellation
-            if ($script:cancelled) {
+            if ($global:AXE_Cancelled) {
                 if (-not $process.HasExited) {
                     & taskkill /F /T /PID $process.Id 2>$null | Out-Null
                 }
@@ -359,7 +360,7 @@ try {
         & taskkill /F /T /PID $process.Id 2>$null | Out-Null
         Write-Host "Killed running Claude process (PID $($process.Id))." -ForegroundColor Yellow
     }
-    $script:childProcess = $null
+    $global:AXE_ChildProcess = $null
 
     # Clean up environment
     $env:AXE_ACTIVE = $null

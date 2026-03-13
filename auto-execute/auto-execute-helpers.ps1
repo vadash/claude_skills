@@ -266,8 +266,15 @@ function Get-ContextSizeFromEvent {
         [PSObject]$Event
     )
 
+    # Extract from assistant events (per-turn context)
     if ($Event.type -eq "assistant" -and $Event.message -and $Event.message.usage) {
         $usage = $Event.message.usage
+        return [int]$usage.input_tokens + [int]$usage.cache_read_input_tokens
+    }
+
+    # Also extract from result events (final context for the task)
+    if ($Event.type -eq "result" -and $Event.usage) {
+        $usage = $Event.usage
         return [int]$usage.input_tokens + [int]$usage.cache_read_input_tokens
     }
 
