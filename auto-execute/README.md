@@ -47,11 +47,7 @@ Without this, the wrapper still works — you just lose the safety hooks.
 
 ### Gitignore
 
-Add `logs/` to your repo's `.gitignore`:
-
-```
-logs/
-```
+The script automatically ensures `logs/` is in `.gitignore` before running tasks. If missing, it appends the entry and commits with `chore: add logs to .gitignore`. No manual setup needed.
 
 ## Usage
 
@@ -99,7 +95,7 @@ The script auto-detects the first unchecked task (`- [ ]`) and runs from there.
 
 For each unchecked task in the plan:
 
-1. **Pre-flight** — verifies clean git tree, plan file exists, CLI available, installs/updates safety hooks if needed
+1. **Pre-flight** — verifies clean git tree, plan file exists, CLI available, installs/updates safety hooks if needed, ensures `logs/` is in `.gitignore`
 2. **Launch** — runs `claude -p "/auto-execute @plan.md do task N" --dangerously-skip-permissions`
 3. **Monitor** — tails output in real-time, enforces timeout
 4. **Verify** — checks 3 signals: exit code 0, new commit, clean tree

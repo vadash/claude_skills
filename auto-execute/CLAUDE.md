@@ -27,6 +27,7 @@ Invoke-Pester -Path tests/ -Output Detailed
 - **Pre-flight (early)**: CLI exists, plan file exists, git tree clean
 - **Hook auto-installer**: Installs/updates safety hooks in target project
 - **Pre-flight (late)**: Plan has unchecked tasks, log directory ready
+- **Gitignore enforcement**: Auto-adds `logs/` to `.gitignore` and commits if missing (prevents dirty-tree false positives from script's own log files)
 - **Per-task timeout**: Kill process after N seconds (default 900)
 - **Post-task verification**: Exit code 0, new commit, clean tree
 - **Hooks**: Block tools on context overflow or repeated identical calls

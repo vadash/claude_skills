@@ -63,14 +63,23 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-# Warn if LogDir is not in .gitignore
+# Ensure LogDir is in .gitignore (prevents dirty-tree false positives from script's own logs)
 $gitignorePath = Join-Path $gitRoot ".gitignore"
+$logDirBase = ($LogDir -split '[/\\]')[0]
+$logPattern = "/$logDirBase/"
+$needsAdd = $true
 if (Test-Path $gitignorePath) {
-    $gitignoreContent = Get-Content $gitignorePath -Raw
-    $logDirBase = ($LogDir -split '[/\\]')[0]
-    if ($gitignoreContent -notmatch [regex]::Escape($logDirBase)) {
-        Write-Host "WARNING: '$logDirBase/' is not in .gitignore. Logs may be committed." -ForegroundColor Yellow
+    $lines = Get-Content $gitignorePath
+    if ($lines | Where-Object { $_ -match "^/?$([regex]::Escape($logDirBase))/?$" }) {
+        $needsAdd = $false
     }
+}
+if ($needsAdd) {
+    Add-Content -Path $gitignorePath -Value "`n$logPattern"
+    Push-Location $gitRoot
+    git add .gitignore
+    git commit -m "chore: add $logDirBase to .gitignore"
+    Pop-Location
 }
 
 # Set environment for hooks
