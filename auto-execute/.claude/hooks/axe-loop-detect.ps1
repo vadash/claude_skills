@@ -1,7 +1,7 @@
 # Loop Detector Hook
 # Trigger: PreToolUse, matcher: *
 # Blocks tool calls when Claude is stuck in a loop.
-# Gated by RALPH_ACTIVE environment variable.
+# Gated by AXE_ACTIVE environment variable.
 
 function Get-InputHash {
     param([string]$Text)
@@ -14,7 +14,7 @@ function Get-InputHash {
 function Test-LoopDetection {
     param(
         [string]$RawInput,
-        [string]$RalphActive,
+        [string]$AxeActive,
         [string]$TempDir,
         [int]$MaxCalls = 100,
         [int]$RepeatThreshold = 3,
@@ -22,7 +22,7 @@ function Test-LoopDetection {
     )
 
     # Gate: only active during auto-execute
-    if ($RalphActive -ne "true") {
+    if ($AxeActive -ne "true") {
         return @{ ExitCode = 0; Message = $null }
     }
 
@@ -46,7 +46,7 @@ function Test-LoopDetection {
     }
 
     # Counter file per session
-    $counterFile = Join-Path $TempDir "ralph-calls-$sessionId.jsonl"
+    $counterFile = Join-Path $TempDir "axe-calls-$sessionId.jsonl"
 
     # Normalize and hash the tool call
     $normalized = ($tool + "|" + ($toolInputStr -replace '\s+', ' ')).ToLower()
@@ -84,7 +84,7 @@ function Test-LoopDetection {
 if ($MyInvocation.InvocationName -ne '.') {
     $rawInput = [Console]::In.ReadToEnd()
     $tempDir = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
-    $result = Test-LoopDetection -RawInput $rawInput -RalphActive $env:RALPH_ACTIVE -TempDir $tempDir
+    $result = Test-LoopDetection -RawInput $rawInput -AxeActive $env:AXE_ACTIVE -TempDir $tempDir
     if ($result.Message) {
         [Console]::Error.WriteLine($result.Message)
     }

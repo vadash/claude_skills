@@ -1,17 +1,17 @@
 # Context Limit Check Hook
 # Trigger: PreToolUse, matcher: *
 # Blocks tool calls when estimated context exceeds token threshold.
-# Gated by RALPH_ACTIVE environment variable.
+# Gated by AXE_ACTIVE environment variable.
 
 function Test-ContextLimit {
     param(
         [string]$RawInput,
-        [string]$RalphActive,
+        [string]$AxeActive,
         [string]$ContextLimitValue
     )
 
     # Gate: only active during auto-execute
-    if ($RalphActive -ne "true") {
+    if ($AxeActive -ne "true") {
         return @{ ExitCode = 0; Message = $null }
     }
 
@@ -45,7 +45,7 @@ function Test-ContextLimit {
 # Main execution — only when invoked directly (not dot-sourced)
 if ($MyInvocation.InvocationName -ne '.') {
     $rawInput = [Console]::In.ReadToEnd()
-    $result = Test-ContextLimit -RawInput $rawInput -RalphActive $env:RALPH_ACTIVE -ContextLimitValue $env:RALPH_CONTEXT_LIMIT
+    $result = Test-ContextLimit -RawInput $rawInput -AxeActive $env:AXE_ACTIVE -ContextLimitValue $env:AXE_CONTEXT_LIMIT
     if ($result.Message) {
         [Console]::Error.WriteLine($result.Message)
     }

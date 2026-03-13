@@ -32,32 +32,32 @@ Describe "Test-LoopDetection" {
         Remove-Item -Path $script:tempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    It "returns ExitCode 0 when RALPH_ACTIVE is not 'true'" {
+    It "returns ExitCode 0 when AXE_ACTIVE is not 'true'" {
         $json = @{ tool = "Bash"; tool_input = @{ command = "echo hi" }; session_id = "s1" } | ConvertTo-Json
-        $result = Test-LoopDetection -RawInput $json -RalphActive '' -TempDir $script:tempDir
+        $result = Test-LoopDetection -RawInput $json -AxeActive '' -TempDir $script:tempDir
         $result.ExitCode | Should -Be 0
     }
 
-    It "returns ExitCode 0 when RALPH_ACTIVE is null" {
+    It "returns ExitCode 0 when AXE_ACTIVE is null" {
         $json = @{ tool = "Bash"; tool_input = @{ command = "echo hi" }; session_id = "s1" } | ConvertTo-Json
-        $result = Test-LoopDetection -RawInput $json -RalphActive $null -TempDir $script:tempDir
+        $result = Test-LoopDetection -RawInput $json -AxeActive $null -TempDir $script:tempDir
         $result.ExitCode | Should -Be 0
     }
 
     It "returns ExitCode 0 for a normal single call" {
         $json = @{ tool = "Bash"; tool_input = @{ command = "echo hi" }; session_id = "s1" } | ConvertTo-Json
-        $result = Test-LoopDetection -RawInput $json -RalphActive 'true' -TempDir $script:tempDir
+        $result = Test-LoopDetection -RawInput $json -AxeActive 'true' -TempDir $script:tempDir
         $result.ExitCode | Should -Be 0
     }
 
     It "returns ExitCode 0 when session_id is missing" {
         $json = @{ tool = "Bash"; tool_input = @{ command = "echo hi" } } | ConvertTo-Json
-        $result = Test-LoopDetection -RawInput $json -RalphActive 'true' -TempDir $script:tempDir
+        $result = Test-LoopDetection -RawInput $json -AxeActive 'true' -TempDir $script:tempDir
         $result.ExitCode | Should -Be 0
     }
 
     It "returns ExitCode 2 when total calls exceed MaxCalls" {
-        $counterFile = Join-Path $script:tempDir "ralph-calls-s1.jsonl"
+        $counterFile = Join-Path $script:tempDir "axe-calls-s1.jsonl"
         # Pre-populate with 100 entries
         1..100 | ForEach-Object {
             $entry = @{ hash = "unique$_"; tool = "Bash"; ts = (Get-Date -Format o) } | ConvertTo-Json -Compress
@@ -65,7 +65,7 @@ Describe "Test-LoopDetection" {
         }
 
         $json = @{ tool = "Bash"; tool_input = @{ command = "echo new" }; session_id = "s1" } | ConvertTo-Json
-        $result = Test-LoopDetection -RawInput $json -RalphActive 'true' -TempDir $script:tempDir -MaxCalls 100
+        $result = Test-LoopDetection -RawInput $json -AxeActive 'true' -TempDir $script:tempDir -MaxCalls 100
         $result.ExitCode | Should -Be 2
         $result.Message | Should -Match 'TOO MANY TOOL CALLS'
     }
@@ -74,14 +74,14 @@ Describe "Test-LoopDetection" {
         $json = @{ tool = "Bash"; tool_input = @{ command = "echo stuck" }; session_id = "s2" } | ConvertTo-Json
 
         # First 2 calls pass
-        $result1 = Test-LoopDetection -RawInput $json -RalphActive 'true' -TempDir $script:tempDir
+        $result1 = Test-LoopDetection -RawInput $json -AxeActive 'true' -TempDir $script:tempDir
         $result1.ExitCode | Should -Be 0
 
-        $result2 = Test-LoopDetection -RawInput $json -RalphActive 'true' -TempDir $script:tempDir
+        $result2 = Test-LoopDetection -RawInput $json -AxeActive 'true' -TempDir $script:tempDir
         $result2.ExitCode | Should -Be 0
 
         # 3rd identical call triggers detection
-        $result3 = Test-LoopDetection -RawInput $json -RalphActive 'true' -TempDir $script:tempDir
+        $result3 = Test-LoopDetection -RawInput $json -AxeActive 'true' -TempDir $script:tempDir
         $result3.ExitCode | Should -Be 2
         $result3.Message | Should -Match 'REPEATED IDENTICAL TOOL CALLS'
     }
@@ -90,13 +90,13 @@ Describe "Test-LoopDetection" {
         $session = "s3"
         1..10 | ForEach-Object {
             $json = @{ tool = "Bash"; tool_input = @{ command = "echo $_" }; session_id = $session } | ConvertTo-Json
-            $result = Test-LoopDetection -RawInput $json -RalphActive 'true' -TempDir $script:tempDir
+            $result = Test-LoopDetection -RawInput $json -AxeActive 'true' -TempDir $script:tempDir
             $result.ExitCode | Should -Be 0
         }
     }
 
     It "returns ExitCode 0 when input JSON is invalid" {
-        $result = Test-LoopDetection -RawInput 'not json {{' -RalphActive 'true' -TempDir $script:tempDir
+        $result = Test-LoopDetection -RawInput 'not json {{' -AxeActive 'true' -TempDir $script:tempDir
         $result.ExitCode | Should -Be 0
     }
 }
