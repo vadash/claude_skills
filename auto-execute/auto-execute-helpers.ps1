@@ -250,14 +250,26 @@ function Format-ToolEvent {
     foreach ($block in $Event.message.content) {
         if ($block.type -eq "tool_use") {
             $toolName = $block.name
-            $inputStr = if ($block.input) {
-                $block.input | ConvertTo-Json -Depth 5 -Compress
-            } else {
-                ""
+            $inputStr = ""
+
+            if ($block.input) {
+                if ($toolName -eq "Bash" -and $block.input.command) {
+                    $inputStr = $block.input.command
+                } elseif ($toolName -match "^(Read|Write|Edit)$" -and $block.input.file_path) {
+                    $fileName = [System.IO.Path]::GetFileName($block.input.file_path)
+                    $inputStr = if ($fileName) { $fileName } else { $block.input.file_path }
+                    if ($toolName -eq "Edit") { $inputStr += " (editing)" }
+                } elseif ($toolName -eq "Glob" -and $block.input.pattern) {
+                    $inputStr = $block.input.pattern
+                } elseif ($toolName -eq "Grep" -and $block.input.pattern) {
+                    $inputStr = $block.input.pattern
+                } else {
+                    $inputStr = $block.input | ConvertTo-Json -Depth 5 -Compress
+                }
             }
 
             if ($inputStr.Length -gt 150) {
-                $inputStr = $inputStr.Substring(0, 150) + "..."
+                $inputStr = $inputStr.Substring(0, 147) + "..."
             }
 
             $results += "[TOOL] $toolName | $inputStr"

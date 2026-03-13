@@ -365,22 +365,64 @@ Describe "Get-CostFromEvent" {
 }
 
 Describe "Format-ToolEvent" {
-    It "formats a tool_use event" {
-        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"pwd"}}]}}'
+    It "shows command for Bash tool" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"npm test 2>&1"}}]}}'
         $event = $json | ConvertFrom-Json
         $result = @(Format-ToolEvent -Event $event)
         $result.Count | Should -Be 1
-        $result[0] | Should -Match '^\[TOOL\] Bash \|'
-        $result[0] | Should -Match 'pwd'
+        $result[0] | Should -Be '[TOOL] Bash | npm test 2>&1'
+    }
+
+    It "shows filename only for Read tool" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/home/user/project/reporter.test.js"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result[0] | Should -Be '[TOOL] Read | reporter.test.js'
+    }
+
+    It "shows filename only for Write tool" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/home/user/project/index.ts","content":"hello world"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result[0] | Should -Be '[TOOL] Write | index.ts'
+    }
+
+    It "shows filename with (editing) for Edit tool" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"/home/user/project/index.ts","old_string":"foo","new_string":"bar"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result[0] | Should -Be '[TOOL] Edit | index.ts (editing)'
+    }
+
+    It "shows pattern for Glob tool" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Glob","input":{"pattern":"**/*.ts"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result[0] | Should -Be '[TOOL] Glob | **/*.ts'
+    }
+
+    It "shows pattern for Grep tool" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Grep","input":{"pattern":"function main","path":"src/"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result[0] | Should -Be '[TOOL] Grep | function main'
+    }
+
+    It "falls back to JSON for unknown tools" {
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Agent","input":{"prompt":"do something"}}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = @(Format-ToolEvent -Event $event)
+        $result[0] | Should -Match '^\[TOOL\] Agent \|'
+        $result[0] | Should -Match '"prompt"'
     }
 
     It "formats multiple tool_use blocks in one message" {
-        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"config.json"}},{"type":"tool_use","name":"Bash","input":{"command":"echo hello"}}]}}'
+        $json = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/project/config.json"}},{"type":"tool_use","name":"Bash","input":{"command":"echo hello"}}]}}'
         $event = $json | ConvertFrom-Json
         $result = @(Format-ToolEvent -Event $event)
         $result.Count | Should -Be 2
-        $result[0] | Should -Match '^\[TOOL\] Read \|'
-        $result[1] | Should -Match '^\[TOOL\] Bash \|'
+        $result[0] | Should -Be '[TOOL] Read | config.json'
+        $result[1] | Should -Be '[TOOL] Bash | echo hello'
     }
 
     It "returns null for a text-only assistant event" {
@@ -407,7 +449,7 @@ Describe "Format-ToolEvent" {
         $result3 | Should -BeNull
     }
 
-    It "truncates long tool input to 150 characters" {
+    It "truncates long input to 150 characters" {
         $longCommand = "a" * 200
         $eventObj = @{
             type = "assistant"
@@ -425,6 +467,9 @@ Describe "Format-ToolEvent" {
         $result = @(Format-ToolEvent -Event $event)[0]
         $result | Should -Match '^\[TOOL\] Bash \|'
         $result | Should -Match '\.\.\.$'
+        # [TOOL] Bash | = 14 chars, then 147 + ... = 150
+        $inputPart = $result.Substring(14)
+        $inputPart.Length | Should -Be 150
     }
 }
 
