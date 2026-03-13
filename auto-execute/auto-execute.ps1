@@ -123,18 +123,38 @@ $stopReason = "Unknown"
 $overallMetrics = @{ Input=0; Output=0; CacheRead=0; CacheWrite=0; Total=0; HitRate=0; CostUSD=0 }
 $overallPeakContext = 0
 
-# Ctrl+C handler — uses global variable for cross-scope visibility in PS 7
-# The script block runs in a different scope, so $script: vars don't work reliably
-$global:AXE_Cancelled = $false
-$global:AXE_ChildProcess = $null
-$cancelHandler = [System.ConsoleCancelEventHandler]{
-    param($sender, $e)
-    $e.Cancel = $true   # prevent immediate exit, let finally block run
-    $global:AXE_Cancelled = $true
-    if ($global:AXE_ChildProcess -and -not $global:AXE_ChildProcess.HasExited) {
-        & taskkill /F /T /PID $global:AXE_ChildProcess.Id 2>$null | Out-Null
+# Ctrl+C handler — compiled C# delegate that runs instantly on the OS signal thread.
+# PowerShell scriptblocks attached to .NET events are queued on the main runspace thread,
+# which never processes them while blocked in our while-loop. A compiled handler bypasses this.
+if (-not ("AxeCtrlC" -as [type])) {
+    Add-Type -TypeDefinition @"
+using System;
+using System.Diagnostics;
+public static class AxeCtrlC {
+    public static volatile bool IsCancelled = false;
+    public static volatile int ChildPid = -1;
+    public static void Handler(object sender, ConsoleCancelEventArgs e) {
+        e.Cancel = true;
+        IsCancelled = true;
+        int pid = ChildPid;
+        if (pid > 0) {
+            try {
+                var psi = new ProcessStartInfo("taskkill", "/F /T /PID " + pid) {
+                    CreateNoWindow = true, UseShellExecute = false
+                };
+                Process.Start(psi);
+            } catch { }
+        }
     }
 }
+"@
+}
+[AxeCtrlC]::IsCancelled = $false
+[AxeCtrlC]::ChildPid = -1
+$cancelHandler = [System.Delegate]::CreateDelegate(
+    [System.ConsoleCancelEventHandler],
+    [AxeCtrlC].GetMethod("Handler")
+)
 [Console]::add_CancelKeyPress($cancelHandler)
 
 try {
@@ -166,7 +186,7 @@ try {
             -PassThru -NoNewWindow `
             -RedirectStandardOutput $taskLogPath `
             -RedirectStandardError "$taskLogPath.err"
-        $global:AXE_ChildProcess = $process
+        [AxeCtrlC]::ChildPid = $process.Id
 
         # Tail the log file with stream-json parsing
         $taskExitCode = $null
@@ -179,7 +199,8 @@ try {
 
         while (-not $exited) {
             # Check for Ctrl+C cancellation
-            if ($global:AXE_Cancelled) {
+            if ([AxeCtrlC]::IsCancelled) {
+                # C# handler already killed the child via taskkill
                 if (-not $process.HasExited) {
                     & taskkill /F /T /PID $process.Id 2>$null | Out-Null
                 }
@@ -280,7 +301,7 @@ try {
         if ($null -eq $taskExitCode) { $taskExitCode = $process.ExitCode }
 
         # Check if run was cancelled via Ctrl+C (caught by event handler OR child process exiting with SIGINT codes)
-        if ($global:AXE_Cancelled -or $taskExitCode -eq 130 -or $taskExitCode -eq 3221225786) {
+        if ([AxeCtrlC]::IsCancelled -or $taskExitCode -eq 130 -or $taskExitCode -eq 3221225786) {
             $taskStart.Stop()
             Write-Host "`n[!] Run cancelled by user." -ForegroundColor Yellow
             $running = $false
@@ -379,7 +400,8 @@ try {
         & taskkill /F /T /PID $process.Id 2>$null | Out-Null
         Write-Host "Killed running Claude process (PID $($process.Id))." -ForegroundColor Yellow
     }
-    $global:AXE_ChildProcess = $null
+    [AxeCtrlC]::ChildPid = -1
+    [AxeCtrlC]::IsCancelled = $false
 
     # Clean up environment
     $env:AXE_ACTIVE = $null
