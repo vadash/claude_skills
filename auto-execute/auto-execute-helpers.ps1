@@ -382,7 +382,7 @@ function Get-ProjectHooksStatus {
         [string]$GitRoot
     )
 
-    $hookNames = @("axe-context-check.ps1", "axe-loop-detect.ps1")
+    $hookNames = @("axe-loop-detect.ps1")
     $projectHooksDir = Join-Path $GitRoot ".claude/hooks"
     $settingsPath = Join-Path $GitRoot ".claude/settings.json"
 
@@ -434,12 +434,10 @@ function Install-ProjectHooks {
     }
 
     # Copy hook files
-    Copy-Item (Join-Path $SourceDir ".claude/hooks/axe-context-check.ps1") $projectHooksDir -Force
     Copy-Item (Join-Path $SourceDir ".claude/hooks/axe-loop-detect.ps1") $projectHooksDir -Force
 
     # Define hook commands
     $axeHookCommands = @(
-        "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-context-check.ps1",
         "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-loop-detect.ps1"
     )
 

@@ -771,7 +771,6 @@ Describe "Get-ProjectHooksStatus" {
 
         # Create source hooks
         New-Item -ItemType Directory -Path (Join-Path $script:sourceDir ".claude/hooks") -Force | Out-Null
-        [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1"), "# context check v1")
         [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1"), "# loop detect v1")
     }
 
@@ -788,7 +787,6 @@ Describe "Get-ProjectHooksStatus" {
     It "returns 'Missing' when hook files exist but no settings.json" {
         $hooksDir = Join-Path $script:gitRoot ".claude/hooks"
         New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
-        Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1") $hooksDir
         Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1") $hooksDir
         Get-ProjectHooksStatus -SourceDir $script:sourceDir -GitRoot $script:gitRoot | Should -Be 'Missing'
     }
@@ -796,15 +794,13 @@ Describe "Get-ProjectHooksStatus" {
     It "returns 'Outdated' when files exist with settings but content differs" {
         $hooksDir = Join-Path $script:gitRoot ".claude/hooks"
         New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
-        [System.IO.File]::WriteAllText((Join-Path $hooksDir "axe-context-check.ps1"), "# old version")
-        [System.IO.File]::WriteAllText((Join-Path $hooksDir "axe-loop-detect.ps1"), "# loop detect v1")
+        [System.IO.File]::WriteAllText((Join-Path $hooksDir "axe-loop-detect.ps1"), "# old version")
         $settings = @{
             hooks = @{
                 PreToolUse = @(
                     @{
                         matcher = "*"
                         hooks = @(
-                            @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-context-check.ps1" }
                             @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-loop-detect.ps1" }
                         )
                     }
@@ -819,7 +815,6 @@ Describe "Get-ProjectHooksStatus" {
     It "returns 'Ok' when everything matches" {
         $hooksDir = Join-Path $script:gitRoot ".claude/hooks"
         New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
-        Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1") $hooksDir
         Copy-Item (Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1") $hooksDir
         $settings = @{
             hooks = @{
@@ -827,7 +822,6 @@ Describe "Get-ProjectHooksStatus" {
                     @{
                         matcher = "*"
                         hooks = @(
-                            @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-context-check.ps1" }
                             @{ type = "command"; command = "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-loop-detect.ps1" }
                         )
                     }
@@ -847,7 +841,6 @@ Describe "Install-ProjectHooks" {
 
         # Create source hooks
         New-Item -ItemType Directory -Path (Join-Path $script:sourceDir ".claude/hooks") -Force | Out-Null
-        [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1"), "# context check v1")
         [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1"), "# loop detect v1")
     }
 
@@ -861,16 +854,14 @@ Describe "Install-ProjectHooks" {
 
         Install-ProjectHooks -SourceDir $script:sourceDir -GitRoot $script:gitRoot
 
-        Test-Path (Join-Path $script:gitRoot ".claude/hooks/axe-context-check.ps1") | Should -BeTrue
         Test-Path (Join-Path $script:gitRoot ".claude/hooks/axe-loop-detect.ps1") | Should -BeTrue
-        Get-Content (Join-Path $script:gitRoot ".claude/hooks/axe-context-check.ps1") -Raw | Should -Match "context check v1"
+        Get-Content (Join-Path $script:gitRoot ".claude/hooks/axe-loop-detect.ps1") -Raw | Should -Match "loop detect v1"
 
         $settingsPath = Join-Path $script:gitRoot ".claude/settings.json"
         Test-Path $settingsPath | Should -BeTrue
         $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
         $settings.hooks.PreToolUse | Should -Not -BeNullOrEmpty
         $allHooks = @($settings.hooks.PreToolUse[0].hooks)
-        ($allHooks | Where-Object { $_.command -match 'axe-context-check' }) | Should -Not -BeNullOrEmpty
         ($allHooks | Where-Object { $_.command -match 'axe-loop-detect' }) | Should -Not -BeNullOrEmpty
     }
 
@@ -894,9 +885,8 @@ Describe "Install-ProjectHooks" {
 
         $settings = Get-Content (Join-Path $script:gitRoot ".claude/settings.json") -Raw | ConvertFrom-Json
         $allHooks = @($settings.hooks.PreToolUse[0].hooks)
-        $allHooks.Count | Should -Be 3
+        $allHooks.Count | Should -Be 2
         ($allHooks | Where-Object { $_.command -match 'some-other-hook' }) | Should -Not -BeNullOrEmpty
-        ($allHooks | Where-Object { $_.command -match 'axe-context-check' }) | Should -Not -BeNullOrEmpty
         ($allHooks | Where-Object { $_.command -match 'axe-loop-detect' }) | Should -Not -BeNullOrEmpty
     }
 
@@ -908,7 +898,7 @@ Describe "Install-ProjectHooks" {
 
         $settings = Get-Content (Join-Path $script:gitRoot ".claude/settings.json") -Raw | ConvertFrom-Json
         $axeHooks = @($settings.hooks.PreToolUse[0].hooks | Where-Object { $_.command -match 'axe-' })
-        $axeHooks.Count | Should -Be 2
+        $axeHooks.Count | Should -Be 1
     }
 }
 

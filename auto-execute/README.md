@@ -39,7 +39,6 @@ This gives the repo:
 .claude/
   settings.json          # hook registration
   hooks/
-    axe-context-check.ps1    # blocks tools when context window is nearly full
     axe-loop-detect.ps1      # blocks tools when Claude is stuck repeating itself
 ```
 
@@ -131,11 +130,7 @@ Checked steps (`- [x]`) are considered done. The wrapper finds the first task wi
 
 ## Safety hooks
 
-Both hooks only activate when `AXE_ACTIVE=true` (set automatically by the wrapper).
-
-### axe-context-check.ps1
-
-No-op. Context limit enforcement is handled in real-time by the wrapper using exact token counts from stream-json events. The hook file is kept so existing `settings.json` registrations don't break.
+The hook only activates when `AXE_ACTIVE=true` (set automatically by the wrapper).
 
 ### axe-loop-detect.ps1
 
@@ -157,7 +152,6 @@ Each run creates:
 Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests" -Output Detailed
 
 # Individual test files
-Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\context-check.Tests.ps1" -Output Detailed
 Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\loop-detect.Tests.ps1" -Output Detailed
 Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\auto-execute-helpers.Tests.ps1" -Output Detailed
 ```
@@ -175,7 +169,6 @@ Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\auto-exec
   .claude/
     settings.json                        # hook registration (copy to target repo)
     hooks/
-      axe-context-check.ps1                  # context limit hook
       axe-loop-detect.ps1                    # loop detection hook
   tests/
     scaffolding.Tests.ps1                # test infrastructure verification
