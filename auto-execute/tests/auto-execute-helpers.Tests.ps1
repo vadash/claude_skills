@@ -308,3 +308,26 @@ Describe "Get-TokensFromEvent" {
         $result | Should -BeNull
     }
 }
+
+Describe "Get-CostFromEvent" {
+    It "returns cost from a result event" {
+        $json = '{"type":"result","total_cost_usd":0.06800875}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-CostFromEvent -Event $event
+        $result | Should -Be 0.06800875
+    }
+
+    It "returns null for an assistant event" {
+        $json = '{"type":"assistant","message":{"usage":{"input_tokens":100,"output_tokens":10}}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-CostFromEvent -Event $event
+        $result | Should -BeNull
+    }
+
+    It "returns null for a system event" {
+        $json = '{"type":"system","subtype":"init"}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-CostFromEvent -Event $event
+        $result | Should -BeNull
+    }
+}

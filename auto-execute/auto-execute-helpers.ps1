@@ -221,3 +221,15 @@ function Get-TokensFromEvent {
         CacheWrite = [int]$usage.cache_creation_input_tokens
     }
 }
+
+function Get-CostFromEvent {
+    param(
+        [PSObject]$Event
+    )
+
+    if ($Event.type -eq "result" -and $null -ne $Event.total_cost_usd) {
+        return [double]$Event.total_cost_usd
+    }
+
+    return $null
+}
