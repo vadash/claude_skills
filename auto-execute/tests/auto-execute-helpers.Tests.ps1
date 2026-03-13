@@ -244,6 +244,20 @@ Describe "Format-FinalReport" {
         $result | Should -Match '0/5 completed'
         $result | Should -Match 'Max failures reached'
     }
+
+    It "appends token string to the duration line" {
+        $duration = [TimeSpan]::FromSeconds(775)
+        $tokenStr = " | Tokens: 180.5k In, 12.4k Out, 152.0k Cache R (84.3% hit) | `$1.23"
+        $result = Format-FinalReport -PlanPath "docs/plans/test.md" `
+            -CompletedTasks 4 -TotalTasks 4 `
+            -TotalDuration $duration `
+            -StopReason "All tasks complete" `
+            -LogFile "logs/auto-execute/run.log" `
+            -TokenString $tokenStr
+        $result | Should -Match '12m 55s'
+        $result | Should -Match '84\.3% hit'
+        $result | Should -Match '\$1\.23'
+    }
 }
 
 Describe "Read-StreamJsonChunk" {

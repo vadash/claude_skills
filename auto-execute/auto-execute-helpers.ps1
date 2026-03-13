@@ -145,7 +145,8 @@ function Format-FinalReport {
         [int]$TotalTasks,
         [TimeSpan]$TotalDuration,
         [string]$StopReason,
-        [string]$LogFile
+        [string]$LogFile,
+        [string]$TokenString = ""
     )
 
     $durationStr = "{0}m {1:D2}s" -f [math]::Floor($TotalDuration.TotalMinutes), $TotalDuration.Seconds
@@ -154,7 +155,7 @@ function Format-FinalReport {
 === Auto-Execute Summary ===
 Plan:       $PlanPath
 Tasks:      $CompletedTasks/$TotalTasks completed
-Duration:   $durationStr
+Duration:   $durationStr$TokenString
 Stop reason: $StopReason
 Logs:       $LogFile
 "@
