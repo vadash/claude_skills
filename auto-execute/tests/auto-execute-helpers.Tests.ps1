@@ -546,3 +546,38 @@ Describe "Clear-LogDirectory" {
         { Clear-LogDirectory -LogDir $script:tempLogDir } | Should -Not -Throw
     }
 }
+
+Describe "Compare-NormalizedFileContent" {
+    BeforeEach {
+        $script:tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-compare-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
+    }
+
+    AfterEach {
+        Remove-Item -Path $script:tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "returns true for identical files" {
+        $fileA = Join-Path $script:tempDir "a.txt"
+        $fileB = Join-Path $script:tempDir "b.txt"
+        [System.IO.File]::WriteAllText($fileA, "line1`nline2`n")
+        [System.IO.File]::WriteAllText($fileB, "line1`nline2`n")
+        Compare-NormalizedFileContent -PathA $fileA -PathB $fileB | Should -BeTrue
+    }
+
+    It "returns true when only difference is CRLF vs LF" {
+        $fileA = Join-Path $script:tempDir "a.txt"
+        $fileB = Join-Path $script:tempDir "b.txt"
+        [System.IO.File]::WriteAllText($fileA, "line1`r`nline2`r`n")
+        [System.IO.File]::WriteAllText($fileB, "line1`nline2`n")
+        Compare-NormalizedFileContent -PathA $fileA -PathB $fileB | Should -BeTrue
+    }
+
+    It "returns false for different content" {
+        $fileA = Join-Path $script:tempDir "a.txt"
+        $fileB = Join-Path $script:tempDir "b.txt"
+        [System.IO.File]::WriteAllText($fileA, "line1")
+        [System.IO.File]::WriteAllText($fileB, "line2")
+        Compare-NormalizedFileContent -PathA $fileA -PathB $fileB | Should -BeFalse
+    }
+}

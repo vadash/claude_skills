@@ -236,6 +236,19 @@ function Get-CostFromEvent {
     return $null
 }
 
+function Compare-NormalizedFileContent {
+    param(
+        [Parameter(Mandatory)]
+        [string]$PathA,
+        [Parameter(Mandatory)]
+        [string]$PathB
+    )
+
+    $contentA = [System.IO.File]::ReadAllText($PathA).Replace("`r`n", "`n")
+    $contentB = [System.IO.File]::ReadAllText($PathB).Replace("`r`n", "`n")
+    return $contentA -eq $contentB
+}
+
 function Format-ToolEvent {
     param(
         [PSObject]$Event
