@@ -105,7 +105,8 @@ if ($StartTask -gt 0) {
 
 Write-Host "Starting auto-execute: tasks $currentTask to $totalTasks" -ForegroundColor Cyan
 Write-Host "Plan: $Plan" -ForegroundColor Cyan
-Write-Host "CLI: $ClaudeBin | MaxTurns: $MaxTurns | Timeout: ${TaskTimeout}s | MaxFailures: $MaxFailures" -ForegroundColor Cyan
+$ctxLimitStr = Format-ContextSize $ContextLimit
+Write-Host "CLI: $ClaudeBin | MaxTurns: $MaxTurns | Timeout: ${TaskTimeout}s | MaxFailures: $MaxFailures | ContextLimit: $ctxLimitStr" -ForegroundColor Cyan
 
 # Clean old log files from previous runs
 Clear-LogDirectory -LogDir $LogDir
@@ -120,6 +121,20 @@ $summaryLogPath = Join-Path $LogDir "run-$runTimestamp.log"
 $summaryEntries = @()
 $stopReason = "Unknown"
 $overallMetrics = @{ Input=0; Output=0; CacheRead=0; CacheWrite=0; Total=0; HitRate=0; CostUSD=0 }
+$overallPeakContext = 0
+
+# Ctrl+C handler — sets flag and kills child process for clean shutdown
+$script:cancelled = $false
+$script:childProcess = $null
+$cancelHandler = [System.ConsoleCancelEventHandler]{
+    param($sender, $e)
+    $e.Cancel = $true   # prevent immediate exit, let finally block run
+    $script:cancelled = $true
+    if ($script:childProcess -and -not $script:childProcess.HasExited) {
+        & taskkill /F /T /PID $script:childProcess.Id 2>$null | Out-Null
+    }
+}
+[Console]::add_CancelKeyPress($cancelHandler)
 
 try {
     while ($running -and $currentTask -le $totalTasks) {
@@ -150,6 +165,7 @@ try {
             -PassThru -NoNewWindow `
             -RedirectStandardOutput $taskLogPath `
             -RedirectStandardError "$taskLogPath.err"
+        $script:childProcess = $process
 
         # Tail the log file with stream-json parsing
         $taskExitCode = $null
@@ -158,8 +174,21 @@ try {
         $exited = $false
         $buffer = ""
         $taskTokens = @{ Input=0; Output=0; CacheRead=0; CacheWrite=0; Total=0; HitRate=0; CostUSD=0 }
+        $taskPeakContext = 0
 
         while (-not $exited) {
+            # Check for Ctrl+C cancellation
+            if ($script:cancelled) {
+                if (-not $process.HasExited) {
+                    & taskkill /F /T /PID $process.Id 2>$null | Out-Null
+                }
+                $taskExitCode = 130
+                $exited = $true
+                $running = $false
+                $stopReason = "Cancelled by user (Ctrl+C)"
+                break
+            }
+
             $exited = $process.WaitForExit(200)
 
             # Read new bytes from stdout (stream-json)
@@ -191,6 +220,12 @@ try {
                             $taskTokens.Output += $usage.Output
                             $taskTokens.CacheRead += $usage.CacheRead
                             $taskTokens.CacheWrite += $usage.CacheWrite
+                        }
+
+                        # Track peak context size (input_tokens + cache_read for this turn)
+                        $ctxSize = Get-ContextSizeFromEvent -Event $event
+                        if ($ctxSize -gt $taskPeakContext) {
+                            $taskPeakContext = $ctxSize
                         }
 
                         # Authoritative result event overwrites accumulated tokens
@@ -257,7 +292,8 @@ try {
             $consecutiveFailures = 0
             $completedCount++
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
-                -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr
+                -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
+                -PeakContext $taskPeakContext -ContextLimit $ContextLimit
             Write-Host $entry -ForegroundColor Green
             $summaryEntries += $entry
             $currentTask++
@@ -270,7 +306,8 @@ try {
             $failReason = $failReasons -join ", "
 
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
-                -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr
+                -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr `
+                -PeakContext $taskPeakContext -ContextLimit $ContextLimit
             Write-Host $entry -ForegroundColor Red
             $summaryEntries += $entry
 
@@ -298,6 +335,11 @@ try {
         $overallMetrics.CacheWrite += $taskTokens.CacheWrite
         $overallMetrics.CostUSD += $taskTokens.CostUSD
 
+        # Track max peak context across all tasks
+        if ($taskPeakContext -gt $overallPeakContext) {
+            $overallPeakContext = $taskPeakContext
+        }
+
         # Clean up temp counter files between tasks (fresh session = fresh counter)
         Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
             Remove-Item -Force -ErrorAction SilentlyContinue
@@ -309,16 +351,20 @@ try {
 } catch {
     $stopReason = "Error: $_"
 } finally {
+    # Remove Ctrl+C handler
+    [Console]::remove_CancelKeyPress($cancelHandler)
+
+    # Kill child process if still running
+    if ($process -and -not $process.HasExited) {
+        & taskkill /F /T /PID $process.Id 2>$null | Out-Null
+        Write-Host "Killed running Claude process (PID $($process.Id))." -ForegroundColor Yellow
+    }
+    $script:childProcess = $null
+
     # Clean up environment
     $env:AXE_ACTIVE = $null
     $env:AXE_CONTEXT_LIMIT = $null
     $overallStart.Stop()
-
-    # Warn about possible background Claude process on Ctrl+C
-    if ($stopReason -eq "Unknown" -or $stopReason -match "^Error:") {
-        Write-Host "NOTE: A Claude process may still be running in the background." -ForegroundColor Yellow
-        Write-Host "Check with: Get-Process -Name node -ErrorAction SilentlyContinue" -ForegroundColor Yellow
-    }
 
     # Clean up temp counter files
     Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
@@ -344,6 +390,7 @@ try {
     # Final report
     $report = Format-FinalReport -PlanPath $Plan -CompletedTasks $completedCount `
         -TotalTasks $totalTasks -TotalDuration $overallStart.Elapsed `
-        -StopReason $stopReason -LogFile $summaryLogPath -TokenString $overallTokenStr
+        -StopReason $stopReason -LogFile $summaryLogPath -TokenString $overallTokenStr `
+        -MaxPeakContext $overallPeakContext -ContextLimit $ContextLimit
     Write-Host "`n$report" -ForegroundColor Cyan
 }

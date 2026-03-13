@@ -137,17 +137,23 @@ function Format-TaskLogEntry {
         [string]$CommitHash,
         [TimeSpan]$Duration,
         [string]$FailReason,
-        [string]$TokenString = ""
+        [string]$TokenString = "",
+        [int]$PeakContext = 0,
+        [int]$ContextLimit = 0
     )
 
     $timestamp = Get-Date -Format "HH:mm:ss"
     $durationStr = "{0}m {1:D2}s" -f [math]::Floor($Duration.TotalMinutes), $Duration.Seconds
+    $ctxStr = ""
+    if ($PeakContext -gt 0 -and $ContextLimit -gt 0) {
+        $ctxStr = " | Peak ctx: $(Format-ContextSize $PeakContext)/$(Format-ContextSize $ContextLimit)"
+    }
 
     if ($Passed) {
         $shortHash = if ($CommitHash.Length -ge 7) { $CommitHash.Substring(0, 7) } else { $CommitHash }
-        return "[$timestamp] Task ${TaskNumber}: PASS (commit $shortHash, $durationStr)$TokenString"
+        return "[$timestamp] Task ${TaskNumber}: PASS (commit $shortHash, $durationStr)$ctxStr$TokenString"
     } else {
-        return "[$timestamp] Task ${TaskNumber}: FAIL ($FailReason) — STOPPED$TokenString"
+        return "[$timestamp] Task ${TaskNumber}: FAIL ($FailReason) — STOPPED$ctxStr$TokenString"
     }
 }
 
@@ -159,16 +165,22 @@ function Format-FinalReport {
         [TimeSpan]$TotalDuration,
         [string]$StopReason,
         [string]$LogFile,
-        [string]$TokenString = ""
+        [string]$TokenString = "",
+        [int]$MaxPeakContext = 0,
+        [int]$ContextLimit = 0
     )
 
     $durationStr = "{0}m {1:D2}s" -f [math]::Floor($TotalDuration.TotalMinutes), $TotalDuration.Seconds
+    $ctxLine = ""
+    if ($MaxPeakContext -gt 0 -and $ContextLimit -gt 0) {
+        $ctxLine = "`nMax peak ctx: $(Format-ContextSize $MaxPeakContext)/$(Format-ContextSize $ContextLimit)"
+    }
 
     return @"
 === Auto-Execute Summary ===
 Plan:       $PlanPath
 Tasks:      $CompletedTasks/$TotalTasks completed
-Duration:   $durationStr$TokenString
+Duration:   $durationStr$TokenString$ctxLine
 Stop reason: $StopReason
 Logs:       $LogFile
 "@
@@ -247,6 +259,29 @@ function Get-CostFromEvent {
     }
 
     return $null
+}
+
+function Get-ContextSizeFromEvent {
+    param(
+        [PSObject]$Event
+    )
+
+    if ($Event.type -eq "assistant" -and $Event.message -and $Event.message.usage) {
+        $usage = $Event.message.usage
+        return [int]$usage.input_tokens + [int]$usage.cache_read_input_tokens
+    }
+
+    return 0
+}
+
+function Format-ContextSize {
+    param(
+        [int]$Tokens
+    )
+
+    if ($Tokens -ge 1000000) { return "{0:0.0}M" -f ($Tokens / 1000000) }
+    if ($Tokens -ge 1000)    { return "{0:0.0}k" -f ($Tokens / 1000) }
+    return [string]$Tokens
 }
 
 function Compare-NormalizedFileContent {

@@ -233,6 +233,28 @@ Describe "Format-TaskLogEntry" {
         $result | Should -Match 'Tokens:'
         $result | Should -Match '\$0\.52'
     }
+
+    It "includes peak context when PeakContext and ContextLimit are provided" {
+        $duration = [TimeSpan]::FromSeconds(120)
+        $result = Format-TaskLogEntry -TaskNumber 1 -Passed $true -CommitHash "abc1234def" `
+            -Duration $duration -PeakContext 45200 -ContextLimit 70000
+        $result | Should -Match 'Peak ctx: 45\.2k/70\.0k'
+    }
+
+    It "omits peak context when PeakContext is 0" {
+        $duration = [TimeSpan]::FromSeconds(120)
+        $result = Format-TaskLogEntry -TaskNumber 1 -Passed $true -CommitHash "abc1234def" `
+            -Duration $duration -PeakContext 0 -ContextLimit 70000
+        $result | Should -Not -Match 'Peak ctx'
+    }
+
+    It "shows peak context before token string" {
+        $duration = [TimeSpan]::FromSeconds(120)
+        $tokenStr = " | Tokens: 10.0k In"
+        $result = Format-TaskLogEntry -TaskNumber 1 -Passed $true -CommitHash "abc1234def" `
+            -Duration $duration -PeakContext 52000 -ContextLimit 70000 -TokenString $tokenStr
+        $result | Should -Match 'Peak ctx.*Tokens:'
+    }
 }
 
 Describe "Format-FinalReport" {
@@ -274,6 +296,28 @@ Describe "Format-FinalReport" {
         $result | Should -Match '12m 55s'
         $result | Should -Match '84\.3% hit'
         $result | Should -Match '\$1\.23'
+    }
+
+    It "includes max peak context when provided" {
+        $duration = [TimeSpan]::FromSeconds(600)
+        $result = Format-FinalReport -PlanPath "plan.md" `
+            -CompletedTasks 3 -TotalTasks 4 `
+            -TotalDuration $duration `
+            -StopReason "All tasks complete" `
+            -LogFile "run.log" `
+            -MaxPeakContext 52100 -ContextLimit 70000
+        $result | Should -Match 'Max peak ctx: 52\.1k/70\.0k'
+    }
+
+    It "omits max peak context when MaxPeakContext is 0" {
+        $duration = [TimeSpan]::FromSeconds(600)
+        $result = Format-FinalReport -PlanPath "plan.md" `
+            -CompletedTasks 3 -TotalTasks 4 `
+            -TotalDuration $duration `
+            -StopReason "All tasks complete" `
+            -LogFile "run.log" `
+            -MaxPeakContext 0 -ContextLimit 70000
+        $result | Should -Not -Match 'Max peak ctx'
     }
 }
 
@@ -378,6 +422,65 @@ Describe "Get-CostFromEvent" {
         $event = $json | ConvertFrom-Json
         $result = Get-CostFromEvent -Event $event
         $result | Should -BeNull
+    }
+}
+
+Describe "Get-ContextSizeFromEvent" {
+    It "returns input_tokens + cache_read from assistant event" {
+        $json = '{"type":"assistant","message":{"usage":{"input_tokens":2943,"output_tokens":27,"cache_read_input_tokens":5305,"cache_creation_input_tokens":1000}}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 8248
+    }
+
+    It "returns input_tokens alone when no cache reads" {
+        $json = '{"type":"assistant","message":{"usage":{"input_tokens":3000,"output_tokens":50,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 3000
+    }
+
+    It "returns 0 for result events" {
+        $json = '{"type":"result","usage":{"input_tokens":5980,"output_tokens":92}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 0
+    }
+
+    It "returns 0 for system events" {
+        $json = '{"type":"system","subtype":"init"}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 0
+    }
+
+    It "returns 0 for user events" {
+        $json = '{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"}]}}'
+        $event = $json | ConvertFrom-Json
+        $result = Get-ContextSizeFromEvent -Event $event
+        $result | Should -Be 0
+    }
+}
+
+Describe "Format-ContextSize" {
+    It "formats thousands with k suffix" {
+        Format-ContextSize -Tokens 45200 | Should -Be "45.2k"
+    }
+
+    It "formats millions with M suffix" {
+        Format-ContextSize -Tokens 1500000 | Should -Be "1.5M"
+    }
+
+    It "formats small numbers as plain integers" {
+        Format-ContextSize -Tokens 500 | Should -Be "500"
+    }
+
+    It "formats exactly 1000 as 1.0k" {
+        Format-ContextSize -Tokens 1000 | Should -Be "1.0k"
+    }
+
+    It "formats 70000 as 70.0k" {
+        Format-ContextSize -Tokens 70000 | Should -Be "70.0k"
     }
 }
 
