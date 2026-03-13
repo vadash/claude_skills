@@ -465,3 +465,34 @@ function Clear-LogDirectory {
     Get-ChildItem -Path "$LogDir/*.log.err" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction SilentlyContinue
 }
+
+function Resolve-PlanPath {
+    param(
+        [Parameter(Mandatory)]
+        [string]$PlanInput,
+        [string]$SearchDir = "docs/plans"
+    )
+
+    # If the input is an existing file, pass through unchanged
+    if (Test-Path $PlanInput) {
+        return $PlanInput
+    }
+
+    # Search for matching plan files
+    if (Test-Path $SearchDir) {
+        $candidates = Get-ChildItem -Path $SearchDir -Filter "*$PlanInput*.md" -File
+    } else {
+        $candidates = @()
+    }
+
+    if ($candidates.Count -eq 1) {
+        return $candidates[0].FullName
+    }
+
+    if ($candidates.Count -gt 1) {
+        $names = ($candidates | ForEach-Object { $_.Name }) -join ", "
+        throw "Ambiguous plan name '$PlanInput'. Matches: $names"
+    }
+
+    throw "No plan matching '$PlanInput' in $SearchDir"
+}

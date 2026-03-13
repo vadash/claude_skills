@@ -746,3 +746,51 @@ Describe "Install-ProjectHooks" {
         $axeHooks.Count | Should -Be 2
     }
 }
+
+Describe "Resolve-PlanPath" {
+    BeforeAll {
+        # Create a temp directory structure mimicking a project
+        $script:tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "axe-test-$(Get-Random)"
+        $script:plansDir = Join-Path $script:tempRoot "docs/plans"
+        New-Item -ItemType Directory -Path $script:plansDir -Force | Out-Null
+        # Create sample plan files
+        "plan1" | Out-File (Join-Path $script:plansDir "2026-03-10-auth-login.md")
+        "plan2" | Out-File (Join-Path $script:plansDir "2026-03-11-auth-signup.md")
+        "plan3" | Out-File (Join-Path $script:plansDir "2026-03-12-markdown-link-checker.md")
+    }
+
+    AfterAll {
+        Remove-Item -Recurse -Force $script:tempRoot -ErrorAction SilentlyContinue
+    }
+
+    It "passes through an existing file path unchanged" {
+        $existingFile = Join-Path $script:plansDir "2026-03-10-auth-login.md"
+        $result = Resolve-PlanPath -PlanInput $existingFile
+        $result | Should -Be $existingFile
+    }
+
+    It "resolves a partial name to a single match" {
+        $result = Resolve-PlanPath -PlanInput "markdown-link" -SearchDir $script:plansDir
+        $result | Should -BeLike "*2026-03-12-markdown-link-checker.md"
+    }
+
+    It "resolves a full plan filename without extension" {
+        $result = Resolve-PlanPath -PlanInput "2026-03-12-markdown-link-checker" -SearchDir $script:plansDir
+        $result | Should -BeLike "*2026-03-12-markdown-link-checker.md"
+    }
+
+    It "throws on ambiguous match with list of candidates" {
+        { Resolve-PlanPath -PlanInput "auth" -SearchDir $script:plansDir } |
+            Should -Throw "*Ambiguous*auth-login*auth-signup*"
+    }
+
+    It "throws when no plan matches" {
+        { Resolve-PlanPath -PlanInput "nonexistent" -SearchDir $script:plansDir } |
+            Should -Throw "*No plan matching*"
+    }
+
+    It "throws when search directory does not exist" {
+        { Resolve-PlanPath -PlanInput "anything" -SearchDir "/no/such/dir" } |
+            Should -Throw "*No plan matching*"
+    }
+}
