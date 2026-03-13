@@ -80,10 +80,18 @@ try {
         Write-Host "`n--- Task $currentTask/$totalTasks ---" -ForegroundColor Cyan
 
         # Build prompt and execute
-        # Resolve full path to handle .cmd extensions (npm packages like claude)
+        # Resolve full path to handle .cmd/.ps1 extensions
         $claudeCmd = (Get-Command $ClaudeBin).Source
         $promptText = "/auto-execute @$Plan do task $currentTask"
-        $argString = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns --no-color"
+        $claudeArgs = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns --no-color"
+
+        # .ps1 scripts can't be launched directly by Start-Process; wrap with powershell
+        if ($claudeCmd -like '*.ps1') {
+            $argString = "-NoProfile -File `"$claudeCmd`" $claudeArgs"
+            $claudeCmd = "powershell"
+        } else {
+            $argString = $claudeArgs
+        }
 
         $process = Start-Process -FilePath $claudeCmd `
             -ArgumentList $argString `
