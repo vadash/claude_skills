@@ -657,3 +657,75 @@ Describe "Get-ProjectHooksStatus" {
         Get-ProjectHooksStatus -SourceDir $script:sourceDir -GitRoot $script:gitRoot | Should -Be 'Ok'
     }
 }
+
+Describe "Install-ProjectHooks" {
+    BeforeEach {
+        $script:sourceDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-source-$(Get-Random)"
+        $script:gitRoot = Join-Path ([System.IO.Path]::GetTempPath()) "pester-project-$(Get-Random)"
+
+        # Create source hooks
+        New-Item -ItemType Directory -Path (Join-Path $script:sourceDir ".claude/hooks") -Force | Out-Null
+        [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-context-check.ps1"), "# context check v1")
+        [System.IO.File]::WriteAllText((Join-Path $script:sourceDir ".claude/hooks/axe-loop-detect.ps1"), "# loop detect v1")
+    }
+
+    AfterEach {
+        Remove-Item -Path $script:sourceDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $script:gitRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "creates directory, copies files, and creates settings.json for a fresh project" {
+        New-Item -ItemType Directory -Path $script:gitRoot -Force | Out-Null
+
+        Install-ProjectHooks -SourceDir $script:sourceDir -GitRoot $script:gitRoot
+
+        Test-Path (Join-Path $script:gitRoot ".claude/hooks/axe-context-check.ps1") | Should -BeTrue
+        Test-Path (Join-Path $script:gitRoot ".claude/hooks/axe-loop-detect.ps1") | Should -BeTrue
+        Get-Content (Join-Path $script:gitRoot ".claude/hooks/axe-context-check.ps1") -Raw | Should -Match "context check v1"
+
+        $settingsPath = Join-Path $script:gitRoot ".claude/settings.json"
+        Test-Path $settingsPath | Should -BeTrue
+        $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+        $settings.hooks.PreToolUse | Should -Not -BeNullOrEmpty
+        $allHooks = @($settings.hooks.PreToolUse[0].hooks)
+        ($allHooks | Where-Object { $_.command -match 'axe-context-check' }) | Should -Not -BeNullOrEmpty
+        ($allHooks | Where-Object { $_.command -match 'axe-loop-detect' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It "preserves existing hooks in settings.json" {
+        New-Item -ItemType Directory -Path (Join-Path $script:gitRoot ".claude") -Force | Out-Null
+        $existing = @{
+            hooks = @{
+                PreToolUse = @(
+                    @{
+                        matcher = "*"
+                        hooks = @(
+                            @{ type = "command"; command = "some-other-hook.ps1" }
+                        )
+                    }
+                )
+            }
+        }
+        $existing | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $script:gitRoot ".claude/settings.json")
+
+        Install-ProjectHooks -SourceDir $script:sourceDir -GitRoot $script:gitRoot
+
+        $settings = Get-Content (Join-Path $script:gitRoot ".claude/settings.json") -Raw | ConvertFrom-Json
+        $allHooks = @($settings.hooks.PreToolUse[0].hooks)
+        $allHooks.Count | Should -Be 3
+        ($allHooks | Where-Object { $_.command -match 'some-other-hook' }) | Should -Not -BeNullOrEmpty
+        ($allHooks | Where-Object { $_.command -match 'axe-context-check' }) | Should -Not -BeNullOrEmpty
+        ($allHooks | Where-Object { $_.command -match 'axe-loop-detect' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It "does not duplicate hook entries on re-install" {
+        New-Item -ItemType Directory -Path $script:gitRoot -Force | Out-Null
+
+        Install-ProjectHooks -SourceDir $script:sourceDir -GitRoot $script:gitRoot
+        Install-ProjectHooks -SourceDir $script:sourceDir -GitRoot $script:gitRoot
+
+        $settings = Get-Content (Join-Path $script:gitRoot ".claude/settings.json") -Raw | ConvertFrom-Json
+        $axeHooks = @($settings.hooks.PreToolUse[0].hooks | Where-Object { $_.command -match 'axe-' })
+        $axeHooks.Count | Should -Be 2
+    }
+}

@@ -292,6 +292,81 @@ function Get-ProjectHooksStatus {
     return 'Ok'
 }
 
+function Install-ProjectHooks {
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourceDir,
+        [Parameter(Mandatory)]
+        [string]$GitRoot
+    )
+
+    $projectHooksDir = Join-Path $GitRoot ".claude/hooks"
+    $settingsPath = Join-Path $GitRoot ".claude/settings.json"
+
+    # Create hooks directory if needed
+    if (-not (Test-Path $projectHooksDir)) {
+        New-Item -ItemType Directory -Path $projectHooksDir -Force | Out-Null
+    }
+
+    # Copy hook files
+    Copy-Item (Join-Path $SourceDir ".claude/hooks/axe-context-check.ps1") $projectHooksDir -Force
+    Copy-Item (Join-Path $SourceDir ".claude/hooks/axe-loop-detect.ps1") $projectHooksDir -Force
+
+    # Define hook commands
+    $axeHookCommands = @(
+        "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-context-check.ps1",
+        "powershell.exe -ExecutionPolicy Bypass -File .claude/hooks/axe-loop-detect.ps1"
+    )
+
+    # Load or create settings
+    if (Test-Path $settingsPath) {
+        $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+    } else {
+        $settings = [PSCustomObject]@{}
+    }
+
+    # Ensure hooks.PreToolUse path exists
+    if (-not $settings.hooks) {
+        $settings | Add-Member -NotePropertyName "hooks" -NotePropertyValue ([PSCustomObject]@{}) -Force
+    }
+    if (-not $settings.hooks.PreToolUse) {
+        $settings.hooks | Add-Member -NotePropertyName "PreToolUse" -NotePropertyValue @() -Force
+    }
+
+    # Find or create matcher: "*" entry
+    $allEntries = @($settings.hooks.PreToolUse)
+    $matcherEntry = $null
+    foreach ($entry in $allEntries) {
+        if ($entry.matcher -eq "*") {
+            $matcherEntry = $entry
+            break
+        }
+    }
+
+    $addNewEntry = $false
+    if (-not $matcherEntry) {
+        $matcherEntry = [PSCustomObject]@{ matcher = "*"; hooks = @() }
+        $addNewEntry = $true
+    }
+
+    # Remove existing axe hooks, then add current versions
+    $existingHooks = if ($matcherEntry.hooks) { @($matcherEntry.hooks) } else { @() }
+    $keptHooks = @($existingHooks | Where-Object { $_.command -notmatch 'axe-' })
+    foreach ($cmd in $axeHookCommands) {
+        $keptHooks += [PSCustomObject]@{ type = "command"; command = $cmd }
+    }
+    $matcherEntry.hooks = $keptHooks
+
+    if ($addNewEntry) {
+        $allEntries += $matcherEntry
+    }
+
+    $settings.hooks.PreToolUse = $allEntries
+
+    # Write back JSON
+    $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding UTF8
+}
+
 function Format-ToolEvent {
     param(
         [PSObject]$Event
