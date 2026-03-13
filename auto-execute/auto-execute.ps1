@@ -3,8 +3,8 @@
 # Each task runs in a fresh Claude process via the auto-execute skill.
 
 param(
-    [Parameter(Mandatory)] [string] $Plan,
-    [string] $ClaudeBin    = "claude",
+    [Parameter(Mandatory, Position=0)] [string] $Plan,
+    [Parameter(Position=1)] [string] $ClaudeBin = "claude",
     [int]    $MaxTurns     = 40,
     [int]    $TaskTimeout  = 900,
     [int]    $ContextLimit = 70000,
@@ -15,6 +15,9 @@ param(
 
 # Dot-source helper functions
 . "$PSScriptRoot/auto-execute-helpers.ps1"
+
+# --- Phase 0: Resolve plan path ---
+$Plan = Resolve-PlanPath -PlanInput $Plan
 
 # --- Phase 1a: Pre-flight (before hooks) ---
 $errors = Test-PreFlightEarly -ClaudeBin $ClaudeBin -PlanPath $Plan
