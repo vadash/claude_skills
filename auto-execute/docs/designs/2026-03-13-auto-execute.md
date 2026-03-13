@@ -2,7 +2,7 @@
 
 **Goal:** Automate the repetitive cycle of `/executing-plans` + `/clear` by running each task in a fresh Claude process with full safety checks.
 
-**Architecture:** Three-component system — a Claude Code skill (SKILL.md) defines per-task behavior, a PowerShell wrapper script (auto-execute.ps1) drives the outer loop across sessions, and hook scripts provide real-time safety guards during execution. All gated by a `RALPH_ACTIVE` environment variable so hooks stay silent during manual Claude usage.
+**Architecture:** Three-component system — a Claude Code skill (SKILL.md) defines per-task behavior, a PowerShell wrapper script (auto-execute.ps1) drives the outer loop across sessions, and hook scripts provide real-time safety guards during execution. All gated by a `AXE_ACTIVE` environment variable so hooks stay silent during manual Claude usage.
 
 **Tech Stack:** PowerShell 5.1+ (built into Windows 11), Claude Code CLI, Claude Code hooks system.
 
@@ -68,8 +68,8 @@ Before the loop starts, verify:
 8. **Tool approval:** The CLI invocation must include `--dangerously-skip-permissions` to bypass all tool approval prompts. In headless `-p` mode, any approval prompt will hang the process until timeout.
 
 Then set environment:
-- `$env:RALPH_ACTIVE = "true"` — activates hooks
-- `$env:RALPH_CONTEXT_LIMIT = $ContextLimit` — hooks read this
+- `$env:AXE_ACTIVE = "true"` — activates hooks
+- `$env:AXE_CONTEXT_LIMIT = $ContextLimit` — hooks read this
 
 Fail fast with a clear message if any check fails.
 
@@ -159,15 +159,15 @@ Logs:       logs/auto-execute/run-20260313-120500.log
 
 **Location:** `.claude/hooks/` inside the project. Tracked in git (they're part of the project's automation setup).
 
-Both hooks are gated: first line checks `$env:RALPH_ACTIVE`. If not set or not "true", exit 0 immediately.
+Both hooks are gated: first line checks `$env:AXE_ACTIVE`. If not set or not "true", exit 0 immediately.
 
 #### Hook A: Context Limit Check (`.claude/hooks/context-check.ps1`)
 
 **Trigger:** `PreToolUse`, matcher `*` (all tools)
 
 **Logic:**
-1. Gate: `if ($env:RALPH_ACTIVE -ne "true") { exit 0 }`
-2. Read threshold from `$env:RALPH_CONTEXT_LIMIT` (default 70000)
+1. Gate: `if ($env:AXE_ACTIVE -ne "true") { exit 0 }`
+2. Read threshold from `$env:AXE_CONTEXT_LIMIT` (default 70000)
 3. Read `transcript_path` from the hook's stdin JSON (Claude Code provides it directly)
 4. Estimate tokens: `$estimatedTokens = (Get-Item $transcriptPath).Length / 4` (O(1) file-size heuristic)
 5. If tokens > threshold → write reason to stderr, exit 2 (blocks tool). The stderr message must instruct the model to stop: `"CONTEXT LIMIT EXCEEDED (~X tokens > $limit). DO NOT RETRY. Output '[AUTO-EXECUTE] Task N FAILED. Reason: context limit' and stop immediately."`
@@ -180,9 +180,9 @@ Both hooks are gated: first line checks `$env:RALPH_ACTIVE`. If not set or not "
 **Trigger:** `PreToolUse`, matcher `*` (all tools)
 
 **Logic:**
-1. Gate: `if ($env:RALPH_ACTIVE -ne "true") { exit 0 }`
+1. Gate: `if ($env:AXE_ACTIVE -ne "true") { exit 0 }`
 2. Read hook input JSON from stdin — extract `tool`, `tool_input`, and `session_id`
-3. Append entry to temp counter file: `$env:TEMP/ralph-calls-<session-id>.jsonl`
+3. Append entry to temp counter file: `$env:TEMP/axe-calls-<session-id>.jsonl`
 4. Count total tool calls in session. If > 100 → exit 2 with stderr: `"TOO MANY TOOL CALLS (>100). DO NOT RETRY. Output '[AUTO-EXECUTE] Task N FAILED. Reason: stuck/loop detected' and stop immediately."`
 5. Check for repetition: normalize `tool_input` (strip extra whitespace, lowercase command strings), then compute hash of `tool + normalized_input`. If same hash appears 3+ times in last 10 calls → exit 2 with stderr: `"REPEATED IDENTICAL TOOL CALLS DETECTED. DO NOT RETRY. Output '[AUTO-EXECUTE] Task N FAILED. Reason: loop detected' and stop immediately."`
 6. Otherwise → exit 0

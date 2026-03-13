@@ -12,7 +12,7 @@ Three components:
 | **Wrapper** | `auto-execute.ps1` | Outer loop — launches Claude per task, verifies results |
 | **Hooks** | `.claude/hooks/` | Real-time safety guards (context limits, loop detection) |
 
-Hooks are gated by the `RALPH_ACTIVE` environment variable — they stay silent during normal manual usage.
+Hooks are gated by the `AXE_ACTIVE` environment variable — they stay silent during normal manual usage.
 
 ## Prerequisites
 
@@ -39,8 +39,8 @@ This gives the repo:
 .claude/
   settings.json          # hook registration
   hooks/
-    context-check.ps1    # blocks tools when context window is nearly full
-    loop-detect.ps1      # blocks tools when Claude is stuck repeating itself
+    axe-context-check.ps1    # blocks tools when context window is nearly full
+    axe-loop-detect.ps1      # blocks tools when Claude is stuck repeating itself
 ```
 
 Without this, the wrapper still works — you just lose the safety hooks.
@@ -131,13 +131,13 @@ Checked steps (`- [x]`) are considered done. The wrapper finds the first task wi
 
 ## Safety hooks
 
-Both hooks only activate when `RALPH_ACTIVE=true` (set automatically by the wrapper).
+Both hooks only activate when `AXE_ACTIVE=true` (set automatically by the wrapper).
 
-### context-check.ps1
+### axe-context-check.ps1
 
 Estimates token usage from transcript file size (`bytes / 4`). Blocks all tool calls when the estimate exceeds `-ContextLimit`, forcing Claude to stop gracefully.
 
-### loop-detect.ps1
+### axe-loop-detect.ps1
 
 Tracks tool calls per session in temp files. Blocks when:
 - Total calls exceed 100 (configurable)
@@ -173,8 +173,8 @@ Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\auto-exec
   .claude/
     settings.json                        # hook registration (copy to target repo)
     hooks/
-      context-check.ps1                  # context limit hook
-      loop-detect.ps1                    # loop detection hook
+      axe-context-check.ps1                  # context limit hook
+      axe-loop-detect.ps1                    # loop detection hook
   tests/
     scaffolding.Tests.ps1                # test infrastructure verification
     context-check.Tests.ps1              # context hook tests

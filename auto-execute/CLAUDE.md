@@ -4,7 +4,7 @@ Automates the `/executing-plans` + `/clear` cycle by running each plan task in a
 
 ## Architecture
 
-Three components, all gated by `RALPH_ACTIVE` environment variable:
+Three components, all gated by `AXE_ACTIVE` environment variable:
 
 | Component | Entry Point | Role |
 |-----------|-------------|------|
