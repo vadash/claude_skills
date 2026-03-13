@@ -435,3 +435,37 @@ Describe "Format-TokenMetrics" {
         $result | Should -Be ""
     }
 }
+
+Describe "Clear-LogDirectory" {
+    BeforeEach {
+        $script:tempLogDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-clear-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:tempLogDir -Force | Out-Null
+    }
+
+    AfterEach {
+        Remove-Item -Path $script:tempLogDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "removes .log and .log.err files, preserves directory and non-log files" {
+        "log content" | Out-File (Join-Path $script:tempLogDir "task-1.log")
+        "err content" | Out-File (Join-Path $script:tempLogDir "task-1.log.err")
+        "log content" | Out-File (Join-Path $script:tempLogDir "task-2.log")
+        "keep me" | Out-File (Join-Path $script:tempLogDir "notes.txt")
+
+        Clear-LogDirectory -LogDir $script:tempLogDir
+
+        Test-Path (Join-Path $script:tempLogDir "task-1.log") | Should -BeFalse
+        Test-Path (Join-Path $script:tempLogDir "task-1.log.err") | Should -BeFalse
+        Test-Path (Join-Path $script:tempLogDir "task-2.log") | Should -BeFalse
+        Test-Path (Join-Path $script:tempLogDir "notes.txt") | Should -BeTrue
+        Test-Path $script:tempLogDir | Should -BeTrue
+    }
+
+    It "does not error when directory does not exist" {
+        { Clear-LogDirectory -LogDir "C:/nonexistent/path/$(Get-Random)" } | Should -Not -Throw
+    }
+
+    It "does not error when directory is empty" {
+        { Clear-LogDirectory -LogDir $script:tempLogDir } | Should -Not -Throw
+    }
+}

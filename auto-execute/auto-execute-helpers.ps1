@@ -294,3 +294,16 @@ function Format-TokenMetrics {
 
     return $result
 }
+
+function Clear-LogDirectory {
+    param(
+        [string]$LogDir
+    )
+
+    if (-not (Test-Path $LogDir)) { return }
+
+    Get-ChildItem -Path "$LogDir/*.log" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path "$LogDir/*.log.err" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
