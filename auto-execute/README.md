@@ -105,7 +105,7 @@ Each task logs peak context extracted from Claude Code's transcript JSONL file (
 
 Stops when:
 - All tasks complete
-- Cancelled by user (Ctrl+C) — kills child process cleanly; also detects SIGINT exit codes (130/3221225786) when child swallows the interrupt
+- Cancelled by user (Ctrl+C, Escape, or Q) — kills child process cleanly via `taskkill /F /T`; also detects SIGINT exit codes (130/3221225786) when child swallows the interrupt
 - Consecutive failures hit `-MaxFailures`
 - Context limit exceeded (wrapper kills process when peak context > `-ContextLimit`)
 - Dirty tree detected (changes are git-stashed)
