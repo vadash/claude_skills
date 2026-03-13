@@ -312,8 +312,12 @@ try {
     Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction SilentlyContinue
 
-    # Write summary log
+    # Write summary log (re-create dir — git stash --include-untracked may have removed it)
     if ($summaryEntries.Count -gt 0) {
+        $logParent = Split-Path $summaryLogPath -Parent
+        if (-not (Test-Path $logParent)) {
+            New-Item -ItemType Directory -Path $logParent -Force | Out-Null
+        }
         $summaryEntries | Out-File -FilePath $summaryLogPath -Encoding UTF8
     }
 
