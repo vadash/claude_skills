@@ -158,3 +158,43 @@ Stop reason: $StopReason
 Logs:       $LogFile
 "@
 }
+
+function Read-StreamJsonChunk {
+    param(
+        [string]$Chunk,
+        [string]$Buffer
+    )
+
+    $events = @()
+    $newBuffer = ""
+    $combined = $Buffer + $Chunk
+
+    if ([string]::IsNullOrEmpty($combined)) {
+        return @{ Events = $events; Buffer = $newBuffer }
+    }
+
+    $lines = $combined -split "`n"
+
+    # If combined doesn't end with newline, last piece is partial
+    if (-not $combined.EndsWith("`n")) {
+        $newBuffer = $lines[-1]
+        if ($lines.Count -gt 1) {
+            $lines = $lines[0..($lines.Count - 2)]
+        } else {
+            $lines = @()
+        }
+    }
+
+    foreach ($line in $lines) {
+        $trimmed = $line.Trim()
+        if ($trimmed -eq "") { continue }
+        try {
+            $parsed = $trimmed | ConvertFrom-Json
+            $events += $parsed
+        } catch {
+            # Skip invalid JSON lines silently
+        }
+    }
+
+    return @{ Events = $events; Buffer = $newBuffer }
+}

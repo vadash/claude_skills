@@ -227,3 +227,46 @@ Describe "Format-FinalReport" {
         $result | Should -Match 'Max failures reached'
     }
 }
+
+Describe "Read-StreamJsonChunk" {
+    It "parses valid JSON lines into events" {
+        $chunk = "{`"type`":`"system`"}`n{`"type`":`"result`"}`n"
+        $result = Read-StreamJsonChunk -Chunk $chunk -Buffer ""
+        $result.Events.Count | Should -Be 2
+        $result.Events[0].type | Should -Be "system"
+        $result.Events[1].type | Should -Be "result"
+        $result.Buffer | Should -Be ""
+    }
+
+    It "buffers incomplete last line" {
+        $chunk = "{`"type`":`"system`"}`n{`"type`":`"parti"
+        $result = Read-StreamJsonChunk -Chunk $chunk -Buffer ""
+        $result.Events.Count | Should -Be 1
+        $result.Events[0].type | Should -Be "system"
+        $result.Buffer | Should -Be "{`"type`":`"parti"
+    }
+
+    It "completes buffered partial line on next call" {
+        $result1 = Read-StreamJsonChunk -Chunk "{`"type`":`"sys" -Buffer ""
+        $result1.Events.Count | Should -Be 0
+        $result1.Buffer | Should -Be "{`"type`":`"sys"
+
+        $result2 = Read-StreamJsonChunk -Chunk "tem`"}`n" -Buffer $result1.Buffer
+        $result2.Events.Count | Should -Be 1
+        $result2.Events[0].type | Should -Be "system"
+        $result2.Buffer | Should -Be ""
+    }
+
+    It "skips invalid JSON lines without error" {
+        $chunk = "not json`n{`"type`":`"system`"}`nalso bad{{`n"
+        $result = Read-StreamJsonChunk -Chunk $chunk -Buffer ""
+        $result.Events.Count | Should -Be 1
+        $result.Events[0].type | Should -Be "system"
+    }
+
+    It "returns empty events and buffer for empty input" {
+        $result = Read-StreamJsonChunk -Chunk "" -Buffer ""
+        $result.Events.Count | Should -Be 0
+        $result.Buffer | Should -Be ""
+    }
+}
