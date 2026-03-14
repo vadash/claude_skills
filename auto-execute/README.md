@@ -117,8 +117,9 @@ Each run creates:
 # All tests
 Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests" -Output Detailed
 
-# Individual test files
-Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\auto-execute-helpers.Tests.ps1" -Output Detailed
+# Individual module tests
+Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\plan.Tests.ps1" -Output Detailed
+Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\monitor.Tests.ps1" -Output Detailed
 ```
 
 ## File map
@@ -127,15 +128,26 @@ Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests\auto-exec
 ~/.claude/skills/auto-execute/
   README.md                              # this file
   SKILL.md                               # Claude Code skill definition
-  auto-execute.ps1                       # main wrapper script
+  auto-execute.ps1                       # thin orchestrator — dot-sources src/ modules
   auto-execute.cmd                       # .cmd shim for PATH usage
-  auto-execute-helpers.ps1               # pure helper functions
   install.ps1                            # one-time installer (adds to PATH)
+  src/
+    args.ps1                             # CLI argument splitting
+    plan.ps1                             # plan parsing and resolution
+    preflight.ps1                        # pre-flight checks and verification
+    stream.ps1                           # stream JSON parsing and transcript reading
+    format.ps1                           # formatting and display
+    monitor.ps1                          # task monitoring loop (depends on stream + format)
   tests/
+    args.Tests.ps1                       # mirrors src/args.ps1
+    plan.Tests.ps1                       # mirrors src/plan.ps1
+    preflight.Tests.ps1                  # mirrors src/preflight.ps1
+    stream.Tests.ps1                     # mirrors src/stream.ps1
+    format.Tests.ps1                     # mirrors src/format.ps1
+    monitor.Tests.ps1                    # tests for Invoke-TaskMonitor
     scaffolding.Tests.ps1                # test infrastructure verification
-    auto-execute-helpers.Tests.ps1       # helper function tests
     install.Tests.ps1                    # installer tests
   docs/
-    designs/2026-03-13-auto-execute.md   # design document
-    plans/2026-03-13-auto-execute.md     # implementation plan
+    designs/                             # design documents
+    plans/                               # implementation plans
 ```

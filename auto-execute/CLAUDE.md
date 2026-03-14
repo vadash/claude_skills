@@ -48,6 +48,11 @@ Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests" -Output 
 
 ## Key Files
 
-- `auto-execute.ps1` — main wrapper (parameters, process management, verification loop)
-- `auto-execute-helpers.ps1` — pure functions (plan parsing via `Get-PlanTasks`, gap detection via `Get-TaskNumberGaps`, temp file creation via `Write-TaskTempFile`, token metrics, formatting)
+- `auto-execute.ps1` — main wrapper (parameters, dot-sources modules, process management, verification loop)
+- `src/args.ps1` — CLI argument splitting (`Split-AxeArguments`)
+- `src/plan.ps1` — plan parsing (`Get-PlanTasks`, `Get-TaskNumberGaps`, `Write-TaskTempFile`, `Resolve-PlanPath`)
+- `src/preflight.ps1` — pre-flight checks (`Test-PreFlightEarly`, `Test-PreFlightLate`, `Test-TaskSuccess`, `Save-DirtyState`)
+- `src/stream.ps1` — stream JSON parsing and transcript reading (6 functions)
+- `src/format.ps1` — formatting and display (6 functions)
+- `src/monitor.ps1` — task monitoring loop (`Invoke-TaskMonitor`; depends on stream + format)
 - `SKILL.md` — Claude Code skill definition (headless task execution rules)
