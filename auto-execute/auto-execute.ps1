@@ -348,10 +348,10 @@ try {
             $consecutiveFailures = 0
             $completedCount++
             $useBackup = $false
-            # Pop stash if this task was stashed before retry
+            # Drop stash if this task was stashed before retry
             if ($stashedThisTask) {
-                git stash pop 2>&1 | Out-Null
-                Write-Host "Task ${currentTask}: Popped stash from earlier attempt." -ForegroundColor DarkGray
+                git stash drop 2>&1 | Out-Null
+                Write-Host "Task ${currentTask}: Dropped stash from failed attempt." -ForegroundColor DarkGray
             }
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
                 -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
