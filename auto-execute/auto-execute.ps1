@@ -157,6 +157,7 @@ try {
         $taskStart = [System.Diagnostics.Stopwatch]::StartNew()
         $taskTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $taskLogPath = Join-Path $LogDir "task-$currentTask-$taskTimestamp.log"
+        $stashedThisTask = $false  # Track if this task was stashed for retry
 
         Write-Host "`n--- Task $currentTask/$totalTasks ---" -ForegroundColor Cyan
 
@@ -374,6 +375,11 @@ try {
             $consecutiveFailures = 0
             $completedCount++
             $useBackup = $false
+            # Pop stash if this task was stashed before retry
+            if ($stashedThisTask) {
+                git stash pop 2>&1 | Out-Null
+                Write-Host "Task $currentTask: Popped stash from earlier attempt." -ForegroundColor DarkGray
+            }
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
                 -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
                 -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
@@ -412,6 +418,7 @@ try {
             if (-not $signals.CleanTree) {
                 $stashed = Save-DirtyState -TaskNumber $currentTask
                 if ($stashed) {
+                    $stashedThisTask = $true
                     Write-Host "Task $currentTask left uncommitted changes. Stashed." -ForegroundColor Yellow
                 }
                 if ($canRetry) {
