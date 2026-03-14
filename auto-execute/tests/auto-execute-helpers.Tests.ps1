@@ -854,6 +854,20 @@ Describe "Clear-LogDirectory" {
     It "does not error when directory is empty" {
         { Clear-LogDirectory -LogDir $script:tempLogDir } | Should -Not -Throw
     }
+
+    It "removes task-*.md temp files alongside logs" {
+        "task content" | Out-File (Join-Path $script:tempLogDir "task-1.md")
+        "task content" | Out-File (Join-Path $script:tempLogDir "task-2.md")
+        "log content" | Out-File (Join-Path $script:tempLogDir "task-1.log")
+        "keep me" | Out-File (Join-Path $script:tempLogDir "notes.txt")
+
+        Clear-LogDirectory -LogDir $script:tempLogDir
+
+        Test-Path (Join-Path $script:tempLogDir "task-1.md") | Should -BeFalse
+        Test-Path (Join-Path $script:tempLogDir "task-2.md") | Should -BeFalse
+        Test-Path (Join-Path $script:tempLogDir "task-1.log") | Should -BeFalse
+        Test-Path (Join-Path $script:tempLogDir "notes.txt") | Should -BeTrue
+    }
 }
 
 Describe "Resolve-PlanPath" {

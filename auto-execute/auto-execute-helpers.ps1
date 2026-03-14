@@ -485,6 +485,8 @@ function Clear-LogDirectory {
         Remove-Item -Force -ErrorAction SilentlyContinue
     Get-ChildItem -Path "$LogDir/*.log.err" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path "$LogDir/task-*.md" -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
 function Resolve-PlanPath {
