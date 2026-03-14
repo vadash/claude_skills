@@ -27,6 +27,9 @@ auto-execute claude_stable_ali claude_stable_any mask-endpoint
 # Full plan path also works
 auto-execute claude_stable_ali docs/plans/2026-03-14-mask-endpoint.md
 
+# Resume from specific task (assumes 1..N-1 done)
+auto-execute claude_stable_ali mask-endpoint 5
+
 # Run tests
 Invoke-Pester -Path tests/ -Output Detailed
 ```
@@ -35,7 +38,7 @@ Invoke-Pester -Path tests/ -Output Detailed
 
 - **Pre-flight (early)**: CLI exists, plan file exists, git tree clean
 - **Hook auto-installer**: Installs/updates safety hooks in target project
-- **Pre-flight (late)**: Plan has unchecked tasks, log directory ready
+- **Pre-flight (late)**: Plan has tasks, log directory ready
 - **Gitignore enforcement**: Auto-adds `logs/` to `.gitignore` and commits if missing (prevents dirty-tree false positives from script's own log files)
 - **Ctrl+C handling**: Two-layer interrupt mechanism. Primary: `[Console]::TreatControlCAsInput = $true` converts Ctrl+C into a regular keystroke, preventing Node.js (claude) from consuming the OS `CTRL_C_EVENT`. The main loop uses `[Console]::ReadKey()` to detect Ctrl+C, Escape, or Q and kills the child process tree. The child's stdin is redirected to NUL to prevent it from reading console input. Fallback: a compiled C# `ConsoleCancelEventHandler` (via `Add-Type`) handles Ctrl+Break on the OS signal thread. Both layers check for SIGINT exit codes (130/3221225786) as additional fallback. Console state is restored in the `finally` block.
 - **Per-task timeout**: Kill process after N seconds (default 900)

@@ -50,19 +50,21 @@ The script automatically ensures `logs/` is in `.gitignore` before running tasks
 
 ## Usage
 
-### Basic — run all remaining tasks
+### Basic — run all tasks from start
 
 ```powershell
 & "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" -Plan "docs/plans/my-plan.md"
 ```
 
-The script auto-detects the first unchecked task (`- [ ]`) and runs from there.
+Starts from task 1. Assumes nothing done yet.
 
-### Start from a specific task
+### Resume from a specific task
 
 ```powershell
 & "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" -Plan "docs/plans/my-plan.md" -StartTask 3
 ```
+
+Assumes tasks 1-2 are already complete.
 
 ### All parameters
 
@@ -74,7 +76,7 @@ The script auto-detects the first unchecked task (`- [ ]`) and runs from there.
 | `-TaskTimeout` | `900` | Seconds before killing a stuck task (15 min) |
 | `-ContextLimit` | `70000` | Token threshold — wrapper kills task when peak context exceeds this |
 | `-MaxFailures` | `2` | Consecutive failures before stopping the loop |
-| `-StartTask` | `0` | Force start at a specific task (0 = auto-detect) |
+| `-StartTask` | `0` | Start at specific task (0 = start from 1, N = assumes 1..N-1 done) |
 | `-LogDir` | `logs/auto-execute` | Where run/task logs are written |
 
 ### Examples
@@ -92,7 +94,7 @@ The script auto-detects the first unchecked task (`- [ ]`) and runs from there.
 
 ## What it does
 
-For each unchecked task in the plan:
+For each task from start to finish:
 
 1. **Pre-flight** — verifies clean git tree, plan file exists, CLI available, installs/updates safety hooks if needed, ensures `logs/` is in `.gitignore`
 2. **Launch** — runs `claude -p "/auto-execute @plan.md do task N" --dangerously-skip-permissions`
@@ -112,21 +114,21 @@ Stops when:
 
 ## Plan format
 
-Plans must use this task/step structure:
+Plans use task headers:
 
 ```markdown
 ### Task 1: Setup
 
-- [ ] Step 1: Do something
-- [ ] Step 2: Do another thing
+Step 1: Do something
+Step 2: Do another thing
 
 ### Task 2: Implementation
 
-- [ ] Step 1: Write tests
-- [ ] Step 2: Write code
+Step 1: Write tests
+Step 2: Write code
 ```
 
-Checked steps (`- [x]`) are considered done. The wrapper finds the first task with any unchecked step.
+The wrapper runs tasks sequentially starting from task 1 (or `-StartTask N` if resuming).
 
 ## Safety hooks
 
