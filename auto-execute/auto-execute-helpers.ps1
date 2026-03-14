@@ -139,7 +139,9 @@ function Format-TaskLogEntry {
         [string]$FailReason,
         [string]$TokenString = "",
         [int]$PeakContext = 0,
-        [int]$ContextLimit = 0
+        [int]$ContextLimit = 0,
+        [string]$ClaudeBin = "",
+        [string]$FailSuffix = "STOPPED"
     )
 
     $timestamp = Get-Date -Format "HH:mm:ss"
@@ -149,11 +151,13 @@ function Format-TaskLogEntry {
         $ctxStr = " | Peak ctx: $(Format-ContextSize $PeakContext)/$(Format-ContextSize $ContextLimit)"
     }
 
+    $binTag = if ($ClaudeBin) { " [$ClaudeBin]" } else { "" }
+
     if ($Passed) {
         $shortHash = if ($CommitHash.Length -ge 7) { $CommitHash.Substring(0, 7) } else { $CommitHash }
-        return "[$timestamp] Task ${TaskNumber}: PASS (commit $shortHash, $durationStr)$ctxStr$TokenString"
+        return "[$timestamp] Task ${TaskNumber}: PASS$binTag (commit $shortHash, $durationStr)$ctxStr$TokenString"
     } else {
-        return "[$timestamp] Task ${TaskNumber}: FAIL ($FailReason) — STOPPED$ctxStr$TokenString"
+        return "[$timestamp] Task ${TaskNumber}: FAIL$binTag ($FailReason) — $FailSuffix$ctxStr$TokenString"
     }
 }
 

@@ -255,6 +255,36 @@ Describe "Format-TaskLogEntry" {
             -Duration $duration -PeakContext 52000 -ContextLimit 70000 -TokenString $tokenStr
         $result | Should -Match 'Peak ctx.*Tokens:'
     }
+
+    It "includes claude binary name when ClaudeBin is provided" {
+        $duration = [TimeSpan]::FromSeconds(120)
+        $result = Format-TaskLogEntry -TaskNumber 1 -Passed $true -CommitHash "abc1234def" `
+            -Duration $duration -ClaudeBin "claude_stable_ali"
+        $result | Should -Match 'PASS \[claude_stable_ali\]'
+    }
+
+    It "includes claude binary name in failing entries" {
+        $duration = [TimeSpan]::FromSeconds(45)
+        $result = Format-TaskLogEntry -TaskNumber 2 -Passed $false -Duration $duration `
+            -FailReason "no new commit" -ClaudeBin "claude_stable_any"
+        $result | Should -Match 'FAIL \[claude_stable_any\]'
+    }
+
+    It "uses custom FailSuffix instead of STOPPED" {
+        $duration = [TimeSpan]::FromSeconds(60)
+        $result = Format-TaskLogEntry -TaskNumber 3 -Passed $false -Duration $duration `
+            -FailReason "no new commit" -FailSuffix "retrying with backup"
+        $result | Should -Match 'retrying with backup'
+        $result | Should -Not -Match 'STOPPED'
+    }
+
+    It "omits binary tag when ClaudeBin is empty" {
+        $duration = [TimeSpan]::FromSeconds(120)
+        $result = Format-TaskLogEntry -TaskNumber 1 -Passed $true -CommitHash "abc1234def" `
+            -Duration $duration
+        $result | Should -Match 'PASS \(commit'
+        $result | Should -Not -Match '\[.*\] \(commit'
+    }
 }
 
 Describe "Format-FinalReport" {
