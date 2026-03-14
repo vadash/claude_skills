@@ -389,9 +389,9 @@ try {
             if (-not $signals.CleanTree) { $failReasons += "dirty tree" }
 
             # Can retry with backup if: backup exists, not already using backup,
-            # tree is clean, and not a context-limit kill
+            # and not a context-limit kill (dirty tree ok - we'll stash first)
             $canRetry = $BackupClaudeBin -and (-not $useBackup) -and
-                        $signals.CleanTree -and ($stopReason -notmatch "^Context limit")
+                        ($stopReason -notmatch "^Context limit")
 
             if ($stopReason -match "^Context limit") {
                 $failReason = $stopReason
@@ -408,12 +408,27 @@ try {
             Write-Host $entry -ForegroundColor Red
             $summaryEntries += $entry
 
-            # Dirty tree handling — no retry
+            # Dirty tree handling — stash and retry with backup if available
             if (-not $signals.CleanTree) {
                 $stashed = Save-DirtyState -TaskNumber $currentTask
                 if ($stashed) {
                     Write-Host "Task $currentTask left uncommitted changes. Stashed." -ForegroundColor Yellow
                 }
+                if ($canRetry) {
+                    # Backup available — retry same task with clean slate
+                    $useBackup = $true
+                    # Accumulate tokens from this attempt before retrying
+                    $overallMetrics.Input += $taskTokens.Input
+                    $overallMetrics.Output += $taskTokens.Output
+                    $overallMetrics.CacheRead += $taskTokens.CacheRead
+                    $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                    $overallMetrics.CostUSD += $taskTokens.CostUSD
+                    if ($taskPeakContext -gt $overallPeakContext) {
+                        $overallPeakContext = $taskPeakContext
+                    }
+                    continue
+                }
+                # No backup available — stop
                 $running = $false
                 $stopReason = "Dirty tree (changes stashed)"
                 continue
