@@ -9,7 +9,7 @@ param(
     [int]    $MaxFailures  = 2,
     [int]    $StartTask    = 0,
     [string] $LogDir       = "logs/auto-execute",
-    [Parameter(Mandatory, ValueFromRemainingArguments)] [string[]] $Arguments
+    [Parameter(Mandatory, ValueFromRemainingArguments, Position=0)] [string[]] $Arguments
 )
 
 # Dot-source helper functions
