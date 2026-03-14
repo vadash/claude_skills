@@ -358,7 +358,11 @@ try {
         $signals = Test-TaskSuccess -ExitCode $taskExitCode `
             -BeforeHash $beforeHash -AfterHash $afterHash -GitStatus $gitStatus
 
-        if ($signals.AllPassed) {
+        # Last task may have nothing to commit if prior tasks covered all work
+        $isCleanNoop = $signals.ExitOk -and $signals.CleanTree -and (-not $signals.NewCommit)
+        $isLastTask = ($currentTask -eq $totalTasks)
+
+        if ($signals.AllPassed -or ($isCleanNoop -and $isLastTask)) {
             $consecutiveFailures = 0
             $completedCount++
             $useBackup = $false
