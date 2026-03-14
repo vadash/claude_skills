@@ -55,6 +55,16 @@ After parsing, existing `$ClaudeBin` and `$Plan` variables are set from the retu
 
 ## Failover Logic
 
+### Dirty Tree Retry
+
+When the primary model fails with a dirty tree and a backup is available:
+1. Stash the dirty changes with `Save-DirtyState`
+2. Retry the same task with the backup model on a clean slate
+3. If backup succeeds, pop the stash (changes restored after commit)
+4. If backup also fails, stash remains (preserved for manual recovery)
+
+Without a backup, dirty tree is a hard stop (changes stashed, execution halted).
+
 ### New State Variables
 
 ```powershell
@@ -71,10 +81,26 @@ $activeClaude = if ($useBackup) { $backupClaudeBin } else { $ClaudeBin }
 $claudeCmd = (Get-Command $activeClaude).Source
 ```
 
-After post-task verification, when a task fails (and it's not cancellation, dirty-tree, or context-limit):
+After post-task verification, when a task fails (and it's not cancellation or context-limit):
 
-```
-if ($backupClaudeBin -and -not $useBackup) {
+```powershell
+# Can retry if: backup exists, not already using backup, not context limit
+$canRetry = $BackupClaudeBin -and (-not $useBackup) -and
+            ($stopReason -notmatch "^Context limit")
+
+# Dirty tree handling — stash and retry with backup if available
+if (-not $signals.CleanTree) {
+    $stashed = Save-DirtyState -TaskNumber $currentTask
+    if ($stashed) { $stashedThisTask = $true }
+    if ($canRetry) {
+        $useBackup = $true
+        continue  # Retry with backup
+    }
+    $running = $false  # No backup, stop
+    continue
+}
+
+if ($canRetry) {
     # Main failed, backup available — retry same task
     $useBackup = $true
     $consecutiveFailures++
@@ -89,8 +115,10 @@ if ($backupClaudeBin -and -not $useBackup) {
 ```
 
 On task success:
-```
+```powershell
 $useBackup = $false    # reset for next task
+# Pop stash if this task was stashed before retry
+if ($stashedThisTask) { git stash pop }
 $currentTask++
 # ... existing success logic
 ```
