@@ -594,7 +594,15 @@ function Resolve-PlanPath {
 
     # Search for matching plan files
     if (Test-Path $SearchDir) {
-        $candidates = Get-ChildItem -Path $SearchDir -Filter "*$PlanInput*.md" -File
+        # Extract just the filename in case a path was provided (e.g., docs\plans\file.md)
+        $fileName = Split-Path -Leaf $PlanInput
+
+        # Handle case where input already includes .md extension
+        if ($fileName -like "*.md") {
+            $candidates = Get-ChildItem -Path $SearchDir -Filter "*$fileName" -File
+        } else {
+            $candidates = Get-ChildItem -Path $SearchDir -Filter "*$fileName*.md" -File
+        }
     } else {
         $candidates = @()
     }
