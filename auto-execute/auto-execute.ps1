@@ -32,37 +32,6 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-# --- Phase 1.5: Hook Auto-Installer ---
-$gitRoot = (git rev-parse --show-toplevel 2>&1).ToString().Trim()
-$hookStatus = Get-ProjectHooksStatus -SourceDir $PSScriptRoot -GitRoot $gitRoot
-
-switch ($hookStatus) {
-    'Missing' {
-        Write-Host "[NOTICE] Safety hooks not installed in this project." -ForegroundColor Yellow
-        $response = Read-Host "Install them? [Y/n]"
-        if ([string]::IsNullOrWhiteSpace($response) -or $response -match '^[Yy]') {
-            Install-ProjectHooks -SourceDir $PSScriptRoot -GitRoot $gitRoot
-            Push-Location $gitRoot
-            git add .claude/hooks/ .claude/settings.json
-            git commit -m "chore: add axe safety hooks"
-            Pop-Location
-            Write-Host "Hooks installed." -ForegroundColor Green
-        } else {
-            Write-Host "WARNING: Running without safety hooks!" -ForegroundColor Red
-            Start-Sleep 2
-        }
-    }
-    'Outdated' {
-        Install-ProjectHooks -SourceDir $PSScriptRoot -GitRoot $gitRoot
-        Push-Location $gitRoot
-        git add .claude/hooks/ .claude/settings.json
-        git commit -m "chore: update axe safety hooks"
-        Pop-Location
-        Write-Host "Safety hooks updated to latest version." -ForegroundColor Cyan
-    }
-    'Ok' { }
-}
-
 # --- Phase 1b: Pre-flight (after hooks) ---
 $errors = Test-PreFlightLate -PlanPath $Plan -LogDir $LogDir
 if ($errors.Count -gt 0) {
@@ -72,6 +41,7 @@ if ($errors.Count -gt 0) {
 }
 
 # Ensure LogDir is in .gitignore (prevents dirty-tree false positives from script's own logs)
+$gitRoot = (git rev-parse --show-toplevel 2>&1).ToString().Trim()
 $gitignorePath = Join-Path $gitRoot ".gitignore"
 $logDirBase = ($LogDir -split '[/\\]')[0]
 $logPattern = "/$logDirBase/"
@@ -89,10 +59,6 @@ if ($needsAdd) {
     git commit -m "chore: add $logDirBase to .gitignore"
     Pop-Location
 }
-
-# Set environment for hooks
-$env:AXE_ACTIVE = "true"
-$env:AXE_CONTEXT_LIMIT = $ContextLimit
 
 # --- Phase 2: Task Tracking ---
 $planContent = Get-Content $Plan -Raw
@@ -489,10 +455,6 @@ try {
         if ($taskPeakContext -gt $overallPeakContext) {
             $overallPeakContext = $taskPeakContext
         }
-
-        # Clean up temp counter files between tasks (fresh session = fresh counter)
-        Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
-            Remove-Item -Force -ErrorAction SilentlyContinue
     }
 
     if ($currentTask -gt $totalTasks -and $running) {
@@ -510,19 +472,12 @@ try {
         Write-Host "Killed running Claude process (PID $($process.Id))." -ForegroundColor Yellow
     }
 
-    # Clean up environment
-    $env:AXE_ACTIVE = $null
-    $env:AXE_CONTEXT_LIMIT = $null
     $overallStart.Stop()
 
     # Clean up temp stdin file
     if ($emptyStdinPath -and (Test-Path $emptyStdinPath)) {
         Remove-Item $emptyStdinPath -Force -ErrorAction SilentlyContinue
     }
-
-    # Clean up temp counter files
-    Get-ChildItem -Path $env:TEMP -Filter "axe-calls-*.jsonl" -ErrorAction SilentlyContinue |
-        Remove-Item -Force -ErrorAction SilentlyContinue
 
     # Write summary log (re-create dir — git stash --include-untracked may have removed it)
     if ($summaryEntries.Count -gt 0) {
