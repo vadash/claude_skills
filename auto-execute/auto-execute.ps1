@@ -3,8 +3,7 @@
 # Each task runs in a fresh Claude process via the auto-execute skill.
 
 param(
-    [Parameter(Mandatory, Position=0)] [string] $Plan,
-    [Parameter(Position=1)] [string] $ClaudeBin = "claude",
+    [Parameter(Mandatory, ValueFromRemainingArguments)] [string[]] $Arguments,
     [int]    $MaxTurns     = 40,
     [int]    $TaskTimeout  = 900,
     [int]    $ContextLimit = 100000,
@@ -16,11 +15,17 @@ param(
 # Dot-source helper functions
 . "$PSScriptRoot/auto-execute-helpers.ps1"
 
-# --- Phase 0: Resolve plan path ---
-$Plan = Resolve-PlanPath -PlanInput $Plan
+# --- Phase 0: Parse arguments ---
+$parsed = Split-AxeArguments -Arguments $Arguments
+$ClaudeBin = $parsed.MainClaude
+$BackupClaudeBin = $parsed.BackupClaude
+$Plan = Resolve-PlanPath -PlanInput $parsed.PlanInput
 
 # --- Phase 1a: Pre-flight (before hooks) ---
 $errors = Test-PreFlightEarly -ClaudeBin $ClaudeBin -PlanPath $Plan
+if ($BackupClaudeBin -and -not (Get-Command $BackupClaudeBin -ErrorAction SilentlyContinue)) {
+    $errors += "Backup CLI binary '$BackupClaudeBin' not found in PATH."
+}
 if ($errors.Count -gt 0) {
     Write-Host "Pre-flight checks failed:" -ForegroundColor Red
     $errors | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
@@ -106,7 +111,8 @@ if ($StartTask -gt 0) {
 Write-Host "Starting auto-execute: tasks $currentTask to $totalTasks" -ForegroundColor Cyan
 Write-Host "Plan: $Plan" -ForegroundColor Cyan
 $ctxLimitStr = Format-ContextSize $ContextLimit
-Write-Host "CLI: $ClaudeBin | MaxTurns: $MaxTurns | Timeout: ${TaskTimeout}s | MaxFailures: $MaxFailures | ContextLimit: $ctxLimitStr" -ForegroundColor Cyan
+$backupStr = if ($BackupClaudeBin) { " (backup: $BackupClaudeBin)" } else { "" }
+Write-Host "CLI: $ClaudeBin$backupStr | MaxTurns: $MaxTurns | Timeout: ${TaskTimeout}s | MaxFailures: $MaxFailures | ContextLimit: $ctxLimitStr" -ForegroundColor Cyan
 
 # Clean old log files from previous runs
 Clear-LogDirectory -LogDir $LogDir
@@ -115,6 +121,7 @@ Clear-LogDirectory -LogDir $LogDir
 $running = $true
 $consecutiveFailures = 0
 $completedCount = 0
+$useBackup = $false
 $overallStart = [System.Diagnostics.Stopwatch]::StartNew()
 $runTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $summaryLogPath = Join-Path $LogDir "run-$runTimestamp.log"
@@ -146,8 +153,9 @@ try {
         Write-Host "`n--- Task $currentTask/$totalTasks ---" -ForegroundColor Cyan
 
         # Build prompt and execute
-        # Resolve full path to handle .cmd/.ps1 extensions
-        $claudeCmd = (Get-Command $ClaudeBin).Source
+        # Pick main or backup binary; resolve full path to handle .cmd/.ps1 extensions
+        $activeClaude = if ($useBackup -and $BackupClaudeBin) { $BackupClaudeBin } else { $ClaudeBin }
+        $claudeCmd = (Get-Command $activeClaude).Source
         $promptText = "/auto-execute @$Plan do task $currentTask"
         $claudeArgs = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns --output-format stream-json --verbose"
 
@@ -353,9 +361,11 @@ try {
         if ($signals.AllPassed) {
             $consecutiveFailures = 0
             $completedCount++
+            $useBackup = $false
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
                 -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
-                -PeakContext $taskPeakContext -ContextLimit $ContextLimit
+                -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                -ClaudeBin $activeClaude
             Write-Host $entry -ForegroundColor Green
             $summaryEntries += $entry
             $currentTask++
@@ -366,6 +376,11 @@ try {
             if (-not $signals.NewCommit) { $failReasons += "no new commit" }
             if (-not $signals.CleanTree) { $failReasons += "dirty tree" }
 
+            # Can retry with backup if: backup exists, not already using backup,
+            # tree is clean, and not a context-limit kill
+            $canRetry = $BackupClaudeBin -and (-not $useBackup) -and
+                        $signals.CleanTree -and ($stopReason -notmatch "^Context limit")
+
             if ($stopReason -match "^Context limit") {
                 $failReason = $stopReason
                 $running = $false
@@ -373,13 +388,15 @@ try {
                 $failReason = $failReasons -join ", "
             }
 
+            $failSuffix = if ($canRetry) { "retrying with backup" } else { "STOPPED" }
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
                 -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr `
-                -PeakContext $taskPeakContext -ContextLimit $ContextLimit
+                -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                -ClaudeBin $activeClaude -FailSuffix $failSuffix
             Write-Host $entry -ForegroundColor Red
             $summaryEntries += $entry
 
-            # Dirty tree handling
+            # Dirty tree handling — no retry
             if (-not $signals.CleanTree) {
                 $stashed = Save-DirtyState -TaskNumber $currentTask
                 if ($stashed) {
@@ -390,6 +407,23 @@ try {
                 continue
             }
 
+            if ($canRetry) {
+                # Main failed, backup available — retry same task
+                $useBackup = $true
+                # Accumulate tokens from this attempt before retrying
+                $overallMetrics.Input += $taskTokens.Input
+                $overallMetrics.Output += $taskTokens.Output
+                $overallMetrics.CacheRead += $taskTokens.CacheRead
+                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                $overallMetrics.CostUSD += $taskTokens.CostUSD
+                if ($taskPeakContext -gt $overallPeakContext) {
+                    $overallPeakContext = $taskPeakContext
+                }
+                continue
+            }
+
+            # Normal failure or backup already tried
+            $useBackup = $false
             if ($consecutiveFailures -ge $MaxFailures) {
                 $running = $false
                 $stopReason = "Max failures reached ($MaxFailures consecutive)"
