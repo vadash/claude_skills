@@ -378,7 +378,7 @@ try {
             # Pop stash if this task was stashed before retry
             if ($stashedThisTask) {
                 git stash pop 2>&1 | Out-Null
-                Write-Host "Task $currentTask: Popped stash from earlier attempt." -ForegroundColor DarkGray
+                Write-Host "Task ${currentTask}: Popped stash from earlier attempt." -ForegroundColor DarkGray
             }
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
                 -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
