@@ -28,6 +28,7 @@ You are running headless in an automated loop with no human present.
 - DO NOT ask the user for clarification.
 - DO NOT wait for user input.
 - IF BLOCKED by a missing dependency, failing test you cannot solve in 3 attempts, or unclear instruction: STOP immediately with the failure output format below.
+- Do NOT use Todo/task-tracking tools (TodoWrite, TaskCreate, etc.). A single task is small enough to track in your reasoning. Keep your context footprint minimal.
 
 ## Assumptions
 
@@ -46,7 +47,7 @@ If any assumption is violated, output the failure format and stop. Do not prompt
    - Run it — verify it fails as expected
    - Write the minimal implementation
    - Run tests — verify they pass
-3. Commit after the completed task
+3. Commit after the completed task. If no code changes were needed, use: `git commit --allow-empty -m "task N: no changes needed"`
 
 **If a test fails unexpectedly:** Apply systematic debugging. You have 3 attempts to fix it. After 3 failed attempts, stop with the failure output.
 
