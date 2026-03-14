@@ -4,7 +4,7 @@
 
 param(
     [int]    $MaxTurns     = 80,
-    [int]    $TaskTimeout  = 900,
+    [int]    $TaskTimeout  = 600,
     [int]    $ContextLimit = 100000,
     [int]    $MaxFailures  = 2,
     [int]    $StartTask    = 0,
@@ -144,6 +144,7 @@ try {
         # Record baseline
         $beforeHash = (git rev-parse HEAD 2>&1).ToString().Trim()
         $taskStart = [System.Diagnostics.Stopwatch]::StartNew()
+        $lastActivity = [System.Diagnostics.Stopwatch]::StartNew()
         $taskTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $taskLogPath = Join-Path $LogDir "task-$currentTask-$taskTimestamp.log"
         $stashedThisTask = $false  # Track if this task was stashed for retry
@@ -225,6 +226,10 @@ try {
                 if ($newContent) {
                     $parsed = Read-StreamJsonChunk -Chunk $newContent -Buffer $buffer
                     $buffer = $parsed.Buffer
+
+                    if ($parsed.Events.Count -gt 0) {
+                        $lastActivity.Restart()
+                    }
 
                     foreach ($event in $parsed.Events) {
                         # Capture session_id from init event for transcript reading
@@ -310,9 +315,9 @@ try {
                 }
             }
 
-            # Timeout check
-            if (-not $exited -and $taskStart.Elapsed.TotalSeconds -gt $TaskTimeout) {
-                Write-Host "`n[TIMEOUT] Task $currentTask exceeded $TaskTimeout seconds." -ForegroundColor Red
+            # Timeout check (activity-based: resets on stream-json events)
+            if (-not $exited -and $lastActivity.Elapsed.TotalSeconds -gt $TaskTimeout) {
+                Write-Host "`n[TIMEOUT] Task $currentTask idle for $TaskTimeout seconds." -ForegroundColor Red
                 & taskkill /F /T /PID $process.Id 2>$null | Out-Null
                 $taskExitCode = 1
                 $exited = $true
