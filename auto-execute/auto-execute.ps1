@@ -3,7 +3,7 @@
 # Each task runs in a fresh Claude process via the auto-execute skill.
 
 param(
-    [int]    $MaxTurns     = 40,
+    [int]    $MaxTurns     = 80,
     [int]    $TaskTimeout  = 900,
     [int]    $ContextLimit = 100000,
     [int]    $MaxFailures  = 2,
@@ -193,6 +193,7 @@ try {
         $taskSessionId = $null
         $transcriptOffset = 0
         $transcriptCheckCounter = 0
+        $taskErrorDetails = $null  # Captures error info from result event (e.g., max turns)
 
         while (-not $exited) {
             $exited = $process.WaitForExit(200)
@@ -267,6 +268,12 @@ try {
                                 $taskTokens.CacheRead = $resultUsage.CacheRead
                                 $taskTokens.CacheWrite = $resultUsage.CacheWrite
                             }
+                        }
+
+                        # Capture error details from result event (e.g., max turns exceeded)
+                        if ($event.type -eq "result" -and $event.subtype -eq "error_max_turns") {
+                            $turns = if ($event.num_turns) { $event.num_turns } else { "?" }
+                            $taskErrorDetails = "max turns exceeded ($turns/$MaxTurns)"
                         }
                     }
                 }
@@ -390,7 +397,14 @@ try {
         } else {
             $consecutiveFailures++
             $failReasons = @()
-            if (-not $signals.ExitOk)    { $failReasons += "exit code $taskExitCode" }
+
+            # Include specific error details if captured (e.g., max turns)
+            if ($taskErrorDetails) {
+                $failReasons += $taskErrorDetails
+            } elseif (-not $signals.ExitOk) {
+                $failReasons += "exit code $taskExitCode"
+            }
+
             if (-not $signals.NewCommit) { $failReasons += "no new commit" }
             if (-not $signals.CleanTree) { $failReasons += "dirty tree" }
 
