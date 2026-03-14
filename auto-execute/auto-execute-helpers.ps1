@@ -38,6 +38,21 @@ function Get-PlanTasks {
     return @{ Preamble = $preamble; Tasks = $tasks }
 }
 
+function Get-TaskNumberGaps {
+    param(
+        [Parameter()]
+        [int[]]$TaskNumbers
+    )
+
+    if (-not $TaskNumbers -or $TaskNumbers.Count -eq 0) { return @() }
+
+    $sorted = $TaskNumbers | Sort-Object
+    $max = $sorted[-1]
+    $expected = 1..$max
+    $missing = @($expected | Where-Object { $_ -notin $sorted })
+    return $missing
+}
+
 function Test-TaskSuccess {
     param(
         [int]$ExitCode,

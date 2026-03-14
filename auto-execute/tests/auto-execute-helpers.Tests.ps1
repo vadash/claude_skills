@@ -102,6 +102,45 @@ Content 5
     }
 }
 
+Describe "Get-TaskNumberGaps" {
+    It "returns empty array for sequential tasks" {
+        $result = @(Get-TaskNumberGaps -TaskNumbers @(1, 2, 3, 4))
+        $result.Count | Should -Be 0
+    }
+
+    It "detects single gap" {
+        $result = @(Get-TaskNumberGaps -TaskNumbers @(1, 2, 4, 5))
+        $result.Count | Should -Be 1
+        $result | Should -Contain 3
+    }
+
+    It "detects multiple gaps" {
+        $result = @(Get-TaskNumberGaps -TaskNumbers @(1, 4, 7))
+        $result | Should -Contain 2
+        $result | Should -Contain 3
+        $result | Should -Contain 5
+        $result | Should -Contain 6
+        $result.Count | Should -Be 4
+    }
+
+    It "returns empty for single task" {
+        $result = @(Get-TaskNumberGaps -TaskNumbers @(1))
+        $result.Count | Should -Be 0
+    }
+
+    It "returns empty for empty input" {
+        $result = @(Get-TaskNumberGaps -TaskNumbers @())
+        $result.Count | Should -Be 0
+    }
+
+    It "handles unsorted input" {
+        $result = @(Get-TaskNumberGaps -TaskNumbers @(3, 1, 5))
+        $result | Should -Contain 2
+        $result | Should -Contain 4
+        $result.Count | Should -Be 2
+    }
+}
+
 Describe "Test-TaskSuccess" {
     It "returns AllPassed true when all 3 signals pass" {
         $result = Test-TaskSuccess -ExitCode 0 -BeforeHash "abc1234" -AfterHash "def5678" -GitStatus ""
