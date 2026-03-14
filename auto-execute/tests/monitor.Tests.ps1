@@ -45,14 +45,19 @@ Describe "Invoke-TaskMonitor" {
         $logPath = Join-Path $script:tempDir "task.log"
         "" | Set-Content $logPath -NoNewline
 
-        $emptyStdin = Join-Path $script:tempDir "empty.txt"
-        "" | Set-Content $emptyStdin -NoNewline
+        # Use System.Diagnostics.Process directly because Start-Process -PassThru
+        # does not populate ExitCode property (known PowerShell limitation)
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = "cmd"
+        $psi.Arguments = "/c exit 42"
+        $psi.UseShellExecute = $false
+        $psi.RedirectStandardOutput = Join-Path $script:tempDir "proc.out"
+        $psi.RedirectStandardError = Join-Path $script:tempDir "proc.err"
 
-        $proc = Start-Process -FilePath "cmd" -ArgumentList "/c exit 42" -PassThru -NoNewWindow `
-            -RedirectStandardInput $emptyStdin `
-            -RedirectStandardOutput (Join-Path $script:tempDir "proc.out") `
-            -RedirectStandardError (Join-Path $script:tempDir "proc.err")
-        $proc.WaitForExit(5000) | Out-Null
+        $proc = New-Object System.Diagnostics.Process
+        $proc.StartInfo = $psi
+        $null = $proc.Start()
+        $proc.WaitForExit(5000)
 
         $result = Invoke-TaskMonitor -Process $proc -TaskLogPath $logPath `
             -TaskTimeout 10 -ContextLimit 100000 -MaxTurns 80 `
