@@ -15,11 +15,14 @@ Execute ONLY the single task specified. Do NOT continue to the next task. The PS
 
 ## Input
 
-Parse `$ARGUMENTS` to determine:
-1. **Plan path** — the plan file to read
-2. **Task number** — which single task to execute (e.g., "do task 3")
+Parse `$ARGUMENTS` to get the path to the task temp file, then read it.
 
-Example: `/auto-execute docs/plans/2026-03-13-auth.md do task 3`
+The temp file contains:
+1. **Preamble** — project goal, architecture, and constraints from the plan
+2. **Task content** — the specific task to execute (including the task header)
+3. **Footer** — link to the full plan file if you need broader context
+
+Example: `/auto-execute logs/auto-execute/task-3.md`
 
 ## Headless Operation Rules
 

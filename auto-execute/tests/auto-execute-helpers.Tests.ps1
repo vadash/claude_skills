@@ -470,14 +470,14 @@ Describe "Format-FinalReport" {
         $result | Should -Not -Match 'To resume manually'
     }
 
-    It "omits resume hint when NextTask exceeds TotalTasks" {
+    It "omits resume hint when NextTask is 0" {
         $duration = [TimeSpan]::FromSeconds(60)
         $result = Format-FinalReport -PlanPath "plan.md" `
             -CompletedTasks 3 -TotalTasks 3 `
             -TotalDuration $duration `
             -StopReason "Dirty tree (changes stashed)" `
             -LogFile "run.log" `
-            -NextTask 4
+            -NextTask 0
         $result | Should -Not -Match 'To resume manually'
     }
 }

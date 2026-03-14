@@ -218,7 +218,7 @@ function Format-FinalReport {
     }
 
     $resumeHint = ""
-    if ($StopReason -ne "All tasks complete" -and $NextTask -gt 0 -and $NextTask -le $TotalTasks) {
+    if ($StopReason -ne "All tasks complete" -and $NextTask -gt 0) {
         $resumeHint = "`n`nTo resume manually:`n  /executing-plans @$PlanPath do task $NextTask"
     }
 

@@ -62,27 +62,49 @@ if ($needsAdd) {
 
 # --- Phase 2: Task Tracking ---
 $planContent = Get-Content $Plan -Raw
-$totalTasks = Get-TotalTaskCount -PlanContent $planContent
+$planData = Get-PlanTasks -PlanContent $planContent
+$totalTasks = $planData.Tasks.Count
 
 if ($totalTasks -eq 0) {
     Write-Host "Error: No tasks found in plan file." -ForegroundColor Red
     exit 1
 }
 
+# Gap detection
+$taskNumbers = $planData.Tasks | ForEach-Object { $_.Number }
+$gaps = Get-TaskNumberGaps -TaskNumbers $taskNumbers
+if ($gaps.Count -gt 0) {
+    $foundStr = ($taskNumbers | Sort-Object) -join ", "
+    $missingStr = $gaps -join ", "
+    Write-Host "WARNING: Gap in task numbering. Found: $foundStr (missing: $missingStr)." -ForegroundColor Yellow
+    $response = Read-Host "Continue anyway? [Y/n]"
+    if ($response -match '^[Nn]') {
+        Write-Host "Aborted." -ForegroundColor Red
+        exit 1
+    }
+}
+
+# Determine starting index
+$taskIndex = 0
 if ($StartTask -gt 0) {
-    $currentTask = $StartTask
-    Write-Host "Resuming from task $currentTask (user specified)" -ForegroundColor Cyan
+    $found = $false
+    for ($i = 0; $i -lt $planData.Tasks.Count; $i++) {
+        if ($planData.Tasks[$i].Number -ge $StartTask) {
+            $taskIndex = $i
+            $found = $true
+            break
+        }
+    }
+    if (-not $found) {
+        Write-Host "All tasks in the plan are already complete!" -ForegroundColor Green
+        exit 0
+    }
+    Write-Host "Resuming from task $($planData.Tasks[$taskIndex].Number) (user specified)" -ForegroundColor Cyan
 } else {
-    $currentTask = 1
-    Write-Host "Starting from task 1" -ForegroundColor Cyan
+    Write-Host "Starting from task $($planData.Tasks[0].Number)" -ForegroundColor Cyan
 }
 
-if ($currentTask -gt $totalTasks) {
-    Write-Host "All tasks in the plan are already complete!" -ForegroundColor Green
-    exit 0
-}
-
-Write-Host "Starting auto-execute: tasks $currentTask to $totalTasks" -ForegroundColor Cyan
+Write-Host "Starting auto-execute: $totalTasks tasks" -ForegroundColor Cyan
 Write-Host "Plan: $Plan" -ForegroundColor Cyan
 $ctxLimitStr = Format-ContextSize $ContextLimit
 $backupStr = if ($BackupClaudeBin) { " (backup: $BackupClaudeBin)" } else { "" }
@@ -117,7 +139,8 @@ Write-Host "Press Ctrl+C, Escape, or Q to cancel a running task." -ForegroundCol
 $emptyStdinPath = [System.IO.Path]::GetTempFileName()
 
 try {
-    while ($running -and $currentTask -le $totalTasks) {
+    while ($running -and $taskIndex -lt $planData.Tasks.Count) {
+        $currentTask = $planData.Tasks[$taskIndex].Number
         # Record baseline
         $beforeHash = (git rev-parse HEAD 2>&1).ToString().Trim()
         $taskStart = [System.Diagnostics.Stopwatch]::StartNew()
@@ -127,11 +150,16 @@ try {
 
         Write-Host "`n--- Task $currentTask/$totalTasks ---" -ForegroundColor Cyan
 
+        # Write per-task temp file
+        $tempTaskPath = Write-TaskTempFile -LogDir $LogDir -TaskNumber $currentTask `
+            -TaskContent $planData.Tasks[$taskIndex].Content `
+            -Preamble $planData.Preamble -PlanPath $Plan
+
         # Build prompt and execute
         # Pick main or backup binary; resolve full path to handle .cmd/.ps1 extensions
         $activeClaude = if ($useBackup -and $BackupClaudeBin) { $BackupClaudeBin } else { $ClaudeBin }
         $claudeCmd = (Get-Command $activeClaude).Source
-        $promptText = "/auto-execute @$Plan do task $currentTask"
+        $promptText = "/auto-execute $tempTaskPath"
         $claudeArgs = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns --output-format stream-json --verbose"
 
         # .ps1 scripts can't be launched directly by Start-Process; wrap with powershell
@@ -342,7 +370,7 @@ try {
 
         # Last task may have nothing to commit if prior tasks covered all work
         $isCleanNoop = $signals.ExitOk -and $signals.CleanTree -and (-not $signals.NewCommit)
-        $isLastTask = ($currentTask -eq $totalTasks)
+        $isLastTask = ($taskIndex -eq $planData.Tasks.Count - 1)
 
         if ($signals.AllPassed -or ($isCleanNoop -and $isLastTask)) {
             $consecutiveFailures = 0
@@ -359,7 +387,7 @@ try {
                 -ClaudeBin $activeClaude
             Write-Host $entry -ForegroundColor Green
             $summaryEntries += $entry
-            $currentTask++
+            $taskIndex++
         } else {
             $consecutiveFailures++
             $failReasons = @()
@@ -457,7 +485,7 @@ try {
         }
     }
 
-    if ($currentTask -gt $totalTasks -and $running) {
+    if ($taskIndex -ge $planData.Tasks.Count -and $running) {
         $stopReason = "All tasks complete"
     }
 } catch {
@@ -501,6 +529,6 @@ try {
         -TotalTasks $totalTasks -TotalDuration $overallStart.Elapsed `
         -StopReason $stopReason -LogFile $summaryLogPath -TokenString $overallTokenStr `
         -MaxPeakContext $overallPeakContext -ContextLimit $ContextLimit `
-        -NextTask $currentTask
+        -NextTask $(if ($taskIndex -lt $planData.Tasks.Count) { $planData.Tasks[$taskIndex].Number } else { 0 })
     Write-Host "`n$report" -ForegroundColor Cyan
 }
