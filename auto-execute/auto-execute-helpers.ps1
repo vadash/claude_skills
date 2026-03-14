@@ -53,6 +53,37 @@ function Get-TaskNumberGaps {
     return $missing
 }
 
+function Write-TaskTempFile {
+    param(
+        [Parameter(Mandatory)]
+        [string]$LogDir,
+        [Parameter(Mandatory)]
+        [int]$TaskNumber,
+        [Parameter(Mandatory)]
+        [string]$TaskContent,
+        [string]$Preamble = "",
+        [Parameter(Mandatory)]
+        [string]$PlanPath
+    )
+
+    $parts = @()
+    if ($Preamble) {
+        $parts += $Preamble
+        $parts += ""
+        $parts += "---"
+        $parts += ""
+    }
+    $parts += $TaskContent
+    $parts += ""
+    $parts += "---"
+    $parts += "Full plan: $PlanPath"
+    $parts += "If this task references other tasks or you need broader context, read the full plan above."
+
+    $tempPath = Join-Path $LogDir "task-$TaskNumber.md"
+    $parts -join "`n" | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
+    return $tempPath
+}
+
 function Test-TaskSuccess {
     param(
         [int]$ExitCode,

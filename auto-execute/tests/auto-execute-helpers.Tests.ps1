@@ -141,6 +141,60 @@ Describe "Get-TaskNumberGaps" {
     }
 }
 
+Describe "Write-TaskTempFile" {
+    BeforeEach {
+        $script:tempDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-tempfile-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:tempDir -Force | Out-Null
+    }
+
+    AfterEach {
+        Remove-Item -Path $script:tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "creates temp file with preamble, task content, and footer" {
+        $result = Write-TaskTempFile -LogDir $script:tempDir -TaskNumber 3 `
+            -TaskContent "### Task 3: Build`n`nStep 1: Do it" `
+            -Preamble "# My Plan`n`n**Goal:** Something" `
+            -PlanPath "docs/plans/my-plan.md"
+
+        $result | Should -Be (Join-Path $script:tempDir "task-3.md")
+        Test-Path $result | Should -BeTrue
+        $content = Get-Content $result -Raw
+        $content | Should -Match "My Plan"
+        $content | Should -Match "Goal"
+        $content | Should -Match "Task 3: Build"
+        $content | Should -Match "Step 1: Do it"
+        $content | Should -Match "Full plan: docs/plans/my-plan.md"
+    }
+
+    It "skips preamble section when preamble is empty" {
+        $result = Write-TaskTempFile -LogDir $script:tempDir -TaskNumber 1 `
+            -TaskContent "### Task 1: Setup`n`nDo it" `
+            -Preamble "" `
+            -PlanPath "plan.md"
+
+        $content = Get-Content $result -Raw
+        $content | Should -Match "^### Task 1: Setup"
+        $content | Should -Match "Full plan: plan.md"
+    }
+
+    It "returns correct file path with task number" {
+        $result = Write-TaskTempFile -LogDir $script:tempDir -TaskNumber 7 `
+            -TaskContent "### Task 7: Final" -PlanPath "plan.md"
+        $result | Should -BeLike "*task-7.md"
+    }
+
+    It "includes full plan link in footer" {
+        $result = Write-TaskTempFile -LogDir $script:tempDir -TaskNumber 1 `
+            -TaskContent "content" -Preamble "preamble" `
+            -PlanPath "docs/plans/2026-03-14-example.md"
+
+        $content = Get-Content $result -Raw
+        $content | Should -Match "Full plan: docs/plans/2026-03-14-example.md"
+        $content | Should -Match "broader context"
+    }
+}
+
 Describe "Test-TaskSuccess" {
     It "returns AllPassed true when all 3 signals pass" {
         $result = Test-TaskSuccess -ExitCode 0 -BeforeHash "abc1234" -AfterHash "def5678" -GitStatus ""
