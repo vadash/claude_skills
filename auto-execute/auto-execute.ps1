@@ -98,14 +98,22 @@ $env:AXE_CONTEXT_LIMIT = $ContextLimit
 $planContent = Get-Content $Plan -Raw
 $totalTasks = Get-TotalTaskCount -PlanContent $planContent
 
+if ($totalTasks -eq 0) {
+    Write-Host "Error: No tasks found in plan file." -ForegroundColor Red
+    exit 1
+}
+
 if ($StartTask -gt 0) {
     $currentTask = $StartTask
+    Write-Host "Resuming from task $currentTask (user specified)" -ForegroundColor Cyan
 } else {
-    $currentTask = Find-FirstUncheckedTask -PlanContent $planContent
-    if ($currentTask -eq 0) {
-        Write-Host "All tasks in the plan are already complete!" -ForegroundColor Green
-        exit 0
-    }
+    $currentTask = 1
+    Write-Host "Starting from task 1" -ForegroundColor Cyan
+}
+
+if ($currentTask -gt $totalTasks) {
+    Write-Host "All tasks in the plan are already complete!" -ForegroundColor Green
+    exit 0
 }
 
 Write-Host "Starting auto-execute: tasks $currentTask to $totalTasks" -ForegroundColor Cyan

@@ -2,36 +2,6 @@
 # Dot-sourced by auto-execute.ps1 and tests.
 # Contains only pure/testable functions.
 
-function Find-FirstUncheckedTask {
-    param(
-        [Parameter(Mandatory)]
-        [string]$PlanContent
-    )
-
-    $lines = $PlanContent -split "`n"
-    $currentTask = 0
-
-    foreach ($line in $lines) {
-        # Found a new task header - start tracking this task
-        if ($line -match '^###\s+Task\s+(\d+)') {
-            $currentTask = [int]$Matches[1]
-            continue
-        }
-        # Found any markdown header (## or ###) - stop tracking current task
-        # This prevents checkboxes in "## Verification Checklist" or "### Task N+1" from being attributed to previous task
-        if ($currentTask -gt 0 -and $line -match '^#{2,}\s') {
-            $currentTask = 0
-            continue
-        }
-        # Found unchecked checkbox within current task section
-        if ($currentTask -gt 0 -and $line -match '^\s*-\s*\[\s\]') {
-            return $currentTask
-        }
-    }
-
-    return 0
-}
-
 function Get-TotalTaskCount {
     param(
         [Parameter(Mandatory)]
@@ -108,14 +78,6 @@ function Test-PreFlightLate {
     )
 
     $errors = @()
-
-    # Check plan has unchecked tasks
-    if (Test-Path $PlanPath) {
-        $content = Get-Content $PlanPath -Raw
-        if ($content -notmatch '\-\s*\[\s\]') {
-            $errors += "Plan file has no unchecked tasks (no '- [ ]' found)."
-        }
-    }
 
     # Check/create log directory
     if (-not (Test-Path $LogDir)) {

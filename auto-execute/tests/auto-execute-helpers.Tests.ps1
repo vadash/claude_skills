@@ -2,78 +2,6 @@ BeforeAll {
     . "$PSScriptRoot/../auto-execute-helpers.ps1"
 }
 
-Describe "Find-FirstUncheckedTask" {
-    It "returns the first task number that has unchecked steps" {
-        $plan = @"
-### Task 1: Setup
-
-- [x] Step 1: Done
-- [x] Step 2: Done
-
-### Task 2: Implementation
-
-- [ ] Step 1: Not done
-- [ ] Step 2: Not done
-"@
-        Find-FirstUncheckedTask -PlanContent $plan | Should -Be 2
-    }
-
-    It "returns 0 when all tasks are complete" {
-        $plan = @"
-### Task 1: Setup
-
-- [x] Step 1: Done
-
-### Task 2: Implementation
-
-- [x] Step 1: Done
-"@
-        Find-FirstUncheckedTask -PlanContent $plan | Should -Be 0
-    }
-
-    It "returns 1 when the very first task has unchecked steps" {
-        $plan = @"
-### Task 1: Setup
-
-- [ ] Step 1: Not done
-"@
-        Find-FirstUncheckedTask -PlanContent $plan | Should -Be 1
-    }
-
-    It "handles mixed checked and unchecked steps within a task" {
-        $plan = @"
-### Task 1: Setup
-
-- [x] Step 1: Done
-- [ ] Step 2: Not done
-"@
-        Find-FirstUncheckedTask -PlanContent $plan | Should -Be 1
-    }
-
-    It "handles plans with no task headers" {
-        $plan = "Just some text with no tasks"
-        Find-FirstUncheckedTask -PlanContent $plan | Should -Be 0
-    }
-
-    It "ignores checkboxes in verification checklist after all tasks" {
-        $plan = @"
-### Task 1: Setup
-- Step 1
-- Step 2
-
-### Task 2: Implementation
-- Step 1
-- Step 2
-
----
-## Verification Checklist
-- [ ] Item 1
-- [ ] Item 2
-"@
-        Find-FirstUncheckedTask -PlanContent $plan | Should -Be 0
-    }
-}
-
 Describe "Get-TotalTaskCount" {
     It "counts all task headers and returns the highest number" {
         $plan = @"
@@ -180,21 +108,10 @@ Describe "Test-PreFlightLate" {
         }
     }
 
-    It "returns error when plan has no unchecked tasks" {
-        $tempPlan = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
-        try {
-            Set-Content $tempPlan.FullName "### Task 1: Done`n- [x] Step 1: Done"
-            $errors = Test-PreFlightLate -PlanPath $tempPlan.FullName -LogDir $script:tempLogDir
-            ($errors | Where-Object { $_ -match "no unchecked tasks" }) | Should -Not -BeNullOrEmpty
-        } finally {
-            Remove-Item $tempPlan.FullName -ErrorAction SilentlyContinue
-        }
-    }
-
     It "creates log directory if it does not exist" {
         $tempPlan = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
         try {
-            Set-Content $tempPlan.FullName "### Task 1: Test`n- [ ] Step 1: Do it"
+            Set-Content $tempPlan.FullName "### Task 1: Test`nStep 1: Do it"
             Test-PreFlightLate -PlanPath $tempPlan.FullName -LogDir $script:tempLogDir | Out-Null
             Test-Path $script:tempLogDir | Should -BeTrue
         } finally {
