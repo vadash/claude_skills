@@ -1,0 +1,11 @@
+{
+  "name": "auto-execute",
+  "version": "1.0.0",
+  "description": "Auto-execute skill for Claude Code",
+  "scripts": {
+    "repomix": "npm run repomix:src && npm run repomix:tests && npm run repomix:docs",
+    "repomix:src": "npx repomix --remove-empty-lines --output repomix-src.md --include \"src/**/*.ps1,auto-execute.ps1,auto-execute.cmd,install.ps1,SKILL.md,CLAUDE.md,README.md\"",
+    "repomix:tests": "npx repomix --remove-empty-lines --compress --output repomix-tests.md --include \"tests/**/*.ps1,CLAUDE.md\"",
+    "repomix:docs": "npx repomix --remove-empty-lines --compress --output repomix-docs.md --include \"docs/**/*.md,CLAUDE.md\""
+  }
+}
