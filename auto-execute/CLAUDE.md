@@ -19,13 +19,13 @@ Three components, all gated by `AXE_ACTIVE` environment variable:
 .\install.ps1
 
 # Execute from any project directory (partial name match)
-auto-execute 2026-03-13-markdown-link-checker claude_stable_ali
+auto-execute claude_stable_ali mask-endpoint
 
-# With default claude binary
-auto-execute markdown-link
+# With backup claude binary (failover on task failure)
+auto-execute claude_stable_ali claude_stable_any mask-endpoint
 
-# Old explicit form still works
-& "path/to/auto-execute.ps1" -Plan "docs/plans/my-plan.md"
+# Full plan path also works
+auto-execute claude_stable_ali docs/plans/2026-03-14-mask-endpoint.md
 
 # Run tests
 Invoke-Pester -Path tests/ -Output Detailed
