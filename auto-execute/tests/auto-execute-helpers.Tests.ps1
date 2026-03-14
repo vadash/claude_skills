@@ -2,34 +2,103 @@ BeforeAll {
     . "$PSScriptRoot/../auto-execute-helpers.ps1"
 }
 
-Describe "Get-TotalTaskCount" {
-    It "counts all task headers and returns the highest number" {
+Describe "Get-PlanTasks" {
+    It "extracts preamble and task blocks" {
         $plan = @"
+# My Plan
+
+**Goal:** Do something
+
+---
+
 ### Task 1: Setup
+
+Step 1: Create files
 
 ### Task 2: Implementation
 
-### Task 3: Testing
+Step 1: Write code
 "@
-        Get-TotalTaskCount -PlanContent $plan | Should -Be 3
+        $result = Get-PlanTasks -PlanContent $plan
+        $result.Preamble | Should -Match "My Plan"
+        $result.Preamble | Should -Match "Goal"
+        $result.Tasks.Count | Should -Be 2
+        $result.Tasks[0].Number | Should -Be 1
+        $result.Tasks[0].Content | Should -Match "Setup"
+        $result.Tasks[0].Content | Should -Match "Create files"
+        $result.Tasks[1].Number | Should -Be 2
+        $result.Tasks[1].Content | Should -Match "Implementation"
+        $result.Tasks[1].Content | Should -Match "Write code"
     }
 
-    It "returns 0 for a plan with no task headers" {
-        Get-TotalTaskCount -PlanContent "No tasks here" | Should -Be 0
+    It "returns empty tasks for a plan with no task headers" {
+        $result = Get-PlanTasks -PlanContent "No tasks here"
+        $result.Preamble | Should -Be "No tasks here"
+        $result.Tasks.Count | Should -Be 0
     }
 
-    It "returns the highest task number even if non-sequential" {
+    It "handles plan with no preamble" {
+        $plan = "### Task 1: Only Task`n`nDo something"
+        $result = Get-PlanTasks -PlanContent $plan
+        $result.Preamble | Should -BeNullOrEmpty
+        $result.Tasks.Count | Should -Be 1
+        $result.Tasks[0].Number | Should -Be 1
+        $result.Tasks[0].Content | Should -Match "Do something"
+    }
+
+    It "matches both ## and ### headers" {
+        $plan = @"
+Preamble
+
+## Task 1: Setup
+
+Content 1
+
+### Task 2: Build
+
+Content 2
+"@
+        $result = Get-PlanTasks -PlanContent $plan
+        $result.Tasks.Count | Should -Be 2
+        $result.Tasks[0].Number | Should -Be 1
+        $result.Tasks[1].Number | Should -Be 2
+    }
+
+    It "handles non-sequential task numbers" {
         $plan = @"
 ### Task 1: First
 
+Content 1
+
 ### Task 5: Last
+
+Content 5
 "@
-        Get-TotalTaskCount -PlanContent $plan | Should -Be 5
+        $result = Get-PlanTasks -PlanContent $plan
+        $result.Tasks.Count | Should -Be 2
+        $result.Tasks[0].Number | Should -Be 1
+        $result.Tasks[1].Number | Should -Be 5
     }
 
     It "handles single task" {
-        $plan = "### Task 1: Only Task"
-        Get-TotalTaskCount -PlanContent $plan | Should -Be 1
+        $plan = "### Task 1: Only`n`nDo it"
+        $result = Get-PlanTasks -PlanContent $plan
+        $result.Tasks.Count | Should -Be 1
+        $result.Tasks[0].Number | Should -Be 1
+        $result.Tasks[0].Content | Should -Match "Do it"
+    }
+
+    It "trims trailing whitespace from preamble and task content" {
+        $plan = "Preamble text`n`n`n### Task 1: Setup`n`nContent`n`n`n"
+        $result = Get-PlanTasks -PlanContent $plan
+        $result.Preamble | Should -Not -Match "`n$"
+        $result.Tasks[0].Content | Should -Not -Match "`n$"
+    }
+
+    It "includes task header in content" {
+        $plan = "### Task 1: Setup`n`nDo it"
+        $result = Get-PlanTasks -PlanContent $plan
+        $result.Tasks[0].Content | Should -Match "^### Task 1: Setup"
     }
 }
 

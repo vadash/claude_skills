@@ -2,21 +2,40 @@
 # Dot-sourced by auto-execute.ps1 and tests.
 # Contains only pure/testable functions.
 
-function Get-TotalTaskCount {
+function Get-PlanTasks {
     param(
         [Parameter(Mandatory)]
         [string]$PlanContent
     )
 
-    $taskMatches = [regex]::Matches($PlanContent, '(?m)^###\s+Task\s+(\d+)')
-    if ($taskMatches.Count -eq 0) { return 0 }
+    $taskPattern = '(?mi)^#{2,3}\s*Task\s+(\d+)'
+    $taskMatches = [regex]::Matches($PlanContent, $taskPattern)
 
-    $max = 0
-    foreach ($m in $taskMatches) {
-        $num = [int]$m.Groups[1].Value
-        if ($num -gt $max) { $max = $num }
+    if ($taskMatches.Count -eq 0) {
+        return @{ Preamble = $PlanContent; Tasks = @() }
     }
-    return $max
+
+    # Preamble: everything before the first task header
+    $firstIndex = $taskMatches[0].Index
+    $preamble = if ($firstIndex -gt 0) {
+        $PlanContent.Substring(0, $firstIndex).TrimEnd()
+    } else { "" }
+
+    # Extract each task block
+    $tasks = @()
+    for ($i = 0; $i -lt $taskMatches.Count; $i++) {
+        $number = [int]$taskMatches[$i].Groups[1].Value
+        $startIndex = $taskMatches[$i].Index
+        $endIndex = if ($i + 1 -lt $taskMatches.Count) {
+            $taskMatches[$i + 1].Index
+        } else {
+            $PlanContent.Length
+        }
+        $content = $PlanContent.Substring($startIndex, $endIndex - $startIndex).TrimEnd()
+        $tasks += @{ Number = $number; Content = $content }
+    }
+
+    return @{ Preamble = $preamble; Tasks = $tasks }
 }
 
 function Test-TaskSuccess {
