@@ -14,11 +14,14 @@ Addresses bugs, false positives, wasted tokens, and architectural fragility iden
 
 #### Parser: `Get-PlanTasks`
 
-Replaces `Get-TotalTaskCount`. Returns an array of task objects instead of a single int.
+Replaces `Get-TotalTaskCount`. Returns a preamble string and an array of task objects.
 
 ```powershell
 # Input: raw plan content
-# Output: @( @{Number=1; Content="..."}, @{Number=2; Content="..."}, ... )
+# Output: @{
+#   Preamble = "goal, architecture, constraints..."
+#   Tasks = @( @{Number=1; Content="..."}, @{Number=2; Content="..."}, ... )
+# }
 function Get-PlanTasks {
     param([string]$PlanContent)
     # ...
@@ -27,7 +30,9 @@ function Get-PlanTasks {
 
 Regex changes from `(?m)^###\s+Task\s+(\d+)` to `(?mi)^#{2,3}\s*Task\s+(\d+)` — accepts `##` and `###`, case-insensitive, tolerates spacing variations. Each task's content is everything from its header to the next task header (or EOF).
 
-The main loop changes from `while ($currentTask -le $totalTasks) { $currentTask++ }` to iterating over the actual array of parsed tasks.
+**Preamble extraction:** Everything before the first `### Task` header is captured as the preamble. Plans typically have goal, architecture, tech stack, and constraints in this section. The preamble is prepended to every per-task temp file so Claude always has project context without needing to read the full plan.
+
+The main loop changes from `while ($currentTask -le $totalTasks) { $currentTask++ }` to iterating over the actual `Tasks` array.
 
 #### Gap Detection
 
@@ -42,13 +47,21 @@ This catches authoring errors before wasting money on a doomed run.
 
 #### Per-Task Temp Files
 
-Before launching Claude for task N, write the extracted task content to `logs/auto-execute/task-N.md`. Append a footer linking the full plan:
+Before launching Claude for task N, write the temp file to `logs/auto-execute/task-N.md` with this structure:
 
 ```markdown
+<preamble from plan — goal, architecture, constraints>
+
+---
+
+<task N content>
+
 ---
 Full plan: docs/plans/2026-03-14-example.md
 If this task references other tasks or you need broader context, read the full plan above.
 ```
+
+The preamble gives Claude the project context on every task. The task content is the specific work. The footer links the full plan as fallback.
 
 The CLI prompt becomes static and shell-safe:
 
@@ -70,7 +83,7 @@ The skill's input parsing changes. Instead of receiving a plan path + task numbe
 
 | Function | Current | New |
 |----------|---------|-----|
-| `Get-TotalTaskCount` | Returns max task number (int) | **Replaced by** `Get-PlanTasks` returning array of `@{Number; Content}` |
+| `Get-TotalTaskCount` | Returns max task number (int) | **Replaced by** `Get-PlanTasks` returning `@{Preamble; Tasks=@(@{Number; Content}, ...)}` |
 | `Clear-LogDirectory` | Deletes `*.log` and `*.log.err` | Also deletes `task-*.md` temp files |
 | `Split-AxeArguments` | Unchanged | Unchanged |
 | Main loop variable | `$currentTask` increments `1..max` | Iterates over `$tasks` array |
@@ -182,9 +195,9 @@ This commits only the specified paths regardless of what else is staged.
 
 | Change | Test approach |
 |--------|--------------|
-| `Get-PlanTasks` parser | Unit tests: various heading formats (`##`/`###`), gaps, single task, content extraction, edge cases (empty plan, no tasks) |
+| `Get-PlanTasks` parser | Unit tests: various heading formats (`##`/`###`), gaps, single task, content extraction, preamble extraction (content before first task), edge cases (empty plan, no tasks, no preamble) |
 | Gap detection prompt | Unit test for the detection logic; manual test for the interactive Y/N prompt |
-| Temp file generation | Unit test: verify file content includes task text + footer with plan link |
+| Temp file generation | Unit test: verify file content includes preamble + task text + footer with plan link |
 | Temp file cleanup | Unit test: `Clear-LogDirectory` removes `task-*.md` alongside logs |
 | Loop detector removal | Verify hook files/settings don't reference it; delete `loop-detect.Tests.ps1` |
 | Activity-based timeout | Unit test: mock stopwatch, verify reset on events, verify kill on idle |
