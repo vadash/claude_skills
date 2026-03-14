@@ -54,6 +54,24 @@ Describe "Find-FirstUncheckedTask" {
         $plan = "Just some text with no tasks"
         Find-FirstUncheckedTask -PlanContent $plan | Should -Be 0
     }
+
+    It "ignores checkboxes in verification checklist after all tasks" {
+        $plan = @"
+### Task 1: Setup
+- Step 1
+- Step 2
+
+### Task 2: Implementation
+- Step 1
+- Step 2
+
+---
+## Verification Checklist
+- [ ] Item 1
+- [ ] Item 2
+"@
+        Find-FirstUncheckedTask -PlanContent $plan | Should -Be 0
+    }
 }
 
 Describe "Get-TotalTaskCount" {

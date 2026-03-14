@@ -12,9 +12,18 @@ function Find-FirstUncheckedTask {
     $currentTask = 0
 
     foreach ($line in $lines) {
+        # Found a new task header - start tracking this task
         if ($line -match '^###\s+Task\s+(\d+)') {
             $currentTask = [int]$Matches[1]
+            continue
         }
+        # Found any markdown header (## or ###) - stop tracking current task
+        # This prevents checkboxes in "## Verification Checklist" or "### Task N+1" from being attributed to previous task
+        if ($currentTask -gt 0 -and $line -match '^#{2,}\s') {
+            $currentTask = 0
+            continue
+        }
+        # Found unchecked checkbox within current task section
         if ($currentTask -gt 0 -and $line -match '^\s*-\s*\[\s\]') {
             return $currentTask
         }
