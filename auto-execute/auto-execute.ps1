@@ -3,13 +3,13 @@
 # Each task runs in a fresh Claude process via the auto-execute skill.
 
 param(
-    [Parameter(Mandatory, ValueFromRemainingArguments)] [string[]] $Arguments,
     [int]    $MaxTurns     = 40,
     [int]    $TaskTimeout  = 900,
     [int]    $ContextLimit = 100000,
     [int]    $MaxFailures  = 2,
     [int]    $StartTask    = 0,
-    [string] $LogDir       = "logs/auto-execute"
+    [string] $LogDir       = "logs/auto-execute",
+    [Parameter(Mandatory, ValueFromRemainingArguments)] [string[]] $Arguments
 )
 
 # Dot-source helper functions
