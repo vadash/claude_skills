@@ -1,0 +1,91 @@
+# tests/preflight.Tests.ps1
+BeforeAll {
+    . "$PSScriptRoot/../src/preflight.ps1"
+}
+
+Describe "Test-PreFlightEarly" {
+    BeforeEach {
+        $script:tempPlan = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
+        Set-Content $script:tempPlan.FullName "### Task 1: Test`n- [ ] Step 1: Do it"
+    }
+
+    AfterEach {
+        Remove-Item $script:tempPlan.FullName -ErrorAction SilentlyContinue
+    }
+
+    It "returns error when CLI binary does not exist" {
+        $errors = Test-PreFlightEarly -ClaudeBin "definitely-not-a-real-command-xyz-123" `
+            -PlanPath $script:tempPlan.FullName
+        ($errors | Where-Object { $_ -match "not found in PATH" }) | Should -Not -BeNullOrEmpty
+    }
+
+    It "returns error when plan file does not exist" {
+        $errors = Test-PreFlightEarly -ClaudeBin "cmd" `
+            -PlanPath "/nonexistent/plan.md"
+        $errors | Should -Contain "Plan file '/nonexistent/plan.md' not found."
+    }
+}
+
+Describe "Test-PreFlightLate" {
+    BeforeEach {
+        $script:tempLogDir = Join-Path ([System.IO.Path]::GetTempPath()) "pester-logs-$(Get-Random)"
+    }
+
+    AfterEach {
+        if (Test-Path $script:tempLogDir) {
+            Remove-Item $script:tempLogDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "creates log directory if it does not exist" {
+        $tempPlan = [System.IO.FileInfo]([System.IO.Path]::GetTempFileName())
+        try {
+            Set-Content $tempPlan.FullName "### Task 1: Test`nStep 1: Do it"
+            Test-PreFlightLate -PlanPath $tempPlan.FullName -LogDir $script:tempLogDir | Out-Null
+            Test-Path $script:tempLogDir | Should -BeTrue
+        } finally {
+            Remove-Item $tempPlan.FullName -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Describe "Test-TaskSuccess" {
+    It "returns AllPassed true when all 3 signals pass" {
+        $result = Test-TaskSuccess -ExitCode 0 -BeforeHash "abc1234" -AfterHash "def5678" -GitStatus ""
+        $result.AllPassed | Should -BeTrue
+        $result.ExitOk | Should -BeTrue
+        $result.NewCommit | Should -BeTrue
+        $result.CleanTree | Should -BeTrue
+    }
+
+    It "fails when exit code is non-zero" {
+        $result = Test-TaskSuccess -ExitCode 1 -BeforeHash "abc1234" -AfterHash "def5678" -GitStatus ""
+        $result.AllPassed | Should -BeFalse
+        $result.ExitOk | Should -BeFalse
+    }
+
+    It "fails when no new commit was made" {
+        $result = Test-TaskSuccess -ExitCode 0 -BeforeHash "abc1234" -AfterHash "abc1234" -GitStatus ""
+        $result.AllPassed | Should -BeFalse
+        $result.NewCommit | Should -BeFalse
+    }
+
+    It "fails when working tree is dirty" {
+        $result = Test-TaskSuccess -ExitCode 0 -BeforeHash "abc1234" -AfterHash "def5678" -GitStatus "M file.txt"
+        $result.AllPassed | Should -BeFalse
+        $result.CleanTree | Should -BeFalse
+    }
+
+    It "fails when all 3 signals fail" {
+        $result = Test-TaskSuccess -ExitCode 1 -BeforeHash "abc1234" -AfterHash "abc1234" -GitStatus "M file.txt"
+        $result.AllPassed | Should -BeFalse
+        $result.ExitOk | Should -BeFalse
+        $result.NewCommit | Should -BeFalse
+        $result.CleanTree | Should -BeFalse
+    }
+
+    It "treats whitespace-only GitStatus as clean" {
+        $result = Test-TaskSuccess -ExitCode 0 -BeforeHash "abc" -AfterHash "def" -GitStatus "   "
+        $result.CleanTree | Should -BeTrue
+    }
+}
