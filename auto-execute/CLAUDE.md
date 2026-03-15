@@ -26,6 +26,9 @@ auto-execute claude_stable_ali claude_stable_any mask-endpoint
 # Full plan path also works
 auto-execute claude_stable_ali docs/plans/2026-03-14-mask-endpoint.md
 
+# Run the most recently committed plan
+auto-execute claude_stable_kimi claude_stable_glm latest
+
 # Resume from specific task (assumes 1..N-1 done)
 auto-execute claude_stable_ali mask-endpoint 5
 

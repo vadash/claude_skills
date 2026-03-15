@@ -240,4 +240,37 @@ Describe "Resolve-PlanPath" {
         { Resolve-PlanPath -PlanInput "anything" -SearchDir "/no/such/dir" } |
             Should -Throw "*No plan matching*"
     }
+
+    It "resolves 'latest' to the most recently committed plan file" {
+        # Uses the real git repo — docs/plans/ needs committed .md files
+        $realPlansDir = Join-Path $PSScriptRoot "../docs/plans"
+        if (-not (Test-Path $realPlansDir)) {
+            Set-ItResult -Skipped -Because "docs/plans directory does not exist in this repo"
+            return
+        }
+        $mdFiles = @(Get-ChildItem -Path $realPlansDir -Filter "*.md" -File -ErrorAction SilentlyContinue)
+        if ($mdFiles.Count -eq 0) {
+            Set-ItResult -Skipped -Because "no .md files in docs/plans"
+            return
+        }
+        $result = Resolve-PlanPath -PlanInput "latest" -SearchDir $realPlansDir
+        $result | Should -BeLike "*.md"
+        Test-Path $result | Should -BeTrue
+    }
+
+    It "throws when 'latest' used but plan directory does not exist" {
+        { Resolve-PlanPath -PlanInput "latest" -SearchDir "/no/such/dir" } |
+            Should -Throw "*does not exist*"
+    }
+
+    It "throws when 'latest' used but no .md files in directory" {
+        $emptyDir = Join-Path ([System.IO.Path]::GetTempPath()) "axe-empty-$(Get-Random)"
+        New-Item -ItemType Directory -Path $emptyDir -Force | Out-Null
+        try {
+            { Resolve-PlanPath -PlanInput "latest" -SearchDir $emptyDir } |
+                Should -Throw "*No plan files found*"
+        } finally {
+            Remove-Item -Recurse -Force $emptyDir -ErrorAction SilentlyContinue
+        }
+    }
 }

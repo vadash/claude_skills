@@ -87,6 +87,28 @@ function Resolve-PlanPath {
         [string]$SearchDir = "docs/plans"
     )
 
+    # "latest" keyword — find most recently committed plan in git history
+    if ($PlanInput -eq 'latest') {
+        if (-not (Test-Path $SearchDir)) {
+            throw "Plan directory '$SearchDir' does not exist."
+        }
+        $planFiles = @(Get-ChildItem -Path $SearchDir -Filter "*.md" -File)
+        if ($planFiles.Count -eq 0) {
+            throw "No plan files found in '$SearchDir'."
+        }
+        $gitOutput = git log -1 --pretty=format:'' --name-only --diff-filter=ACMR -- "$SearchDir/*.md" 2>&1
+        $relativePath = ($gitOutput | Where-Object { $_ -match '\.md$' } | Select-Object -First 1)
+        if (-not $relativePath) {
+            throw "No plan files found in git history under '$SearchDir'."
+        }
+        $gitRoot = (git rev-parse --show-toplevel 2>&1).ToString().Trim()
+        $fullPath = Join-Path $gitRoot $relativePath
+        if (-not (Test-Path $fullPath)) {
+            throw "Latest plan '$relativePath' found in git history but file no longer exists."
+        }
+        return $fullPath
+    }
+
     if (Test-Path $PlanInput) {
         return $PlanInput
     }
