@@ -31,6 +31,7 @@ auto-execute claude_stable_kimi claude_stable_glm latest
 
 # Resume from specific task (assumes 1..N-1 done)
 auto-execute claude_stable_ali mask-endpoint 5
+auto-execute claude_stable_ali mask-endpoint --Start-task 5
 
 # Run tests
 Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests" -Output Detailed
@@ -52,7 +53,7 @@ Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests" -Output 
 ## Key Files
 
 - `auto-execute.ps1` — main wrapper (parameters, dot-sources modules, process management, verification loop)
-- `src/args.ps1` — CLI argument splitting (`Split-AxeArguments`)
+- `src/args.ps1` — CLI argument splitting (`Split-AxeArguments`): classifies `claude`-prefixed args as binaries, bare numbers or `--Start-task N` as StartTask, remainder as plan input
 - `src/plan.ps1` — plan parsing (`Get-PlanTasks`, `Get-TaskNumberGaps`, `Write-TaskTempFile`, `Resolve-PlanPath`)
 - `src/preflight.ps1` — pre-flight checks (`Test-PreFlightEarly`, `Test-PreFlightLate`, `Test-TaskSuccess`, `Save-DirtyState`)
 - `src/stream.ps1` — stream JSON parsing and transcript reading (6 functions)
