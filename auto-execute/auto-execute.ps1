@@ -151,7 +151,6 @@ try {
         $taskStart = [System.Diagnostics.Stopwatch]::StartNew()
         $taskTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
         $taskLogPath = Join-Path $LogDir "task-$currentTask-$taskTimestamp.log"
-        $stashedThisTask = $false  # Track if this task was stashed for retry
 
         Write-Host "`n--- Task $currentTask/$totalTasks ---" -ForegroundColor Cyan
 
@@ -230,11 +229,6 @@ try {
             $consecutiveFailures = 0
             $completedCount++
             $useBackup = $false
-            # Drop stash if this task was stashed before retry
-            if ($stashedThisTask) {
-                git stash drop 2>&1 | Out-Null
-                Write-Host "Task ${currentTask}: Dropped stash from failed attempt." -ForegroundColor DarkGray
-            }
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
                 -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
                 -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
@@ -278,11 +272,8 @@ try {
 
             # Dirty tree handling — stash and retry with backup if available
             if (-not $signals.CleanTree) {
-                $stashed = Save-DirtyState -TaskNumber $currentTask
-                if ($stashed) {
-                    $stashedThisTask = $true
-                    Write-Host "Task $currentTask left uncommitted changes. Stashed." -ForegroundColor Yellow
-                }
+                Save-DirtyState -TaskNumber $currentTask | Out-Null
+                Write-Host "Task $currentTask left uncommitted changes. Reset." -ForegroundColor Yellow
                 if ($canRetry) {
                     # Backup available — retry same task with clean slate
                     $useBackup = $true
@@ -299,7 +290,7 @@ try {
                 }
                 # No backup available — stop
                 $running = $false
-                $stopReason = "Dirty tree (changes stashed)"
+                $stopReason = "Dirty tree (changes reset)"
                 continue
             }
 

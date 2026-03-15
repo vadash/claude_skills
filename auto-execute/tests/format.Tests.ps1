@@ -196,7 +196,7 @@ Describe "Format-FinalReport" {
         $result = Format-FinalReport -PlanPath "plan.md" `
             -CompletedTasks 3 -TotalTasks 3 `
             -TotalDuration $duration `
-            -StopReason "Dirty tree (changes stashed)" `
+            -StopReason "Dirty tree (changes reset)" `
             -LogFile "run.log" `
             -NextTask 0
         $result | Should -Not -Match 'To resume manually'

@@ -72,7 +72,7 @@ function Save-DirtyState {
         [int]$TaskNumber
     )
 
-    $stashMsg = "auto-execute: partial task $TaskNumber"
-    git stash --include-untracked -m $stashMsg 2>&1
+    git reset --hard HEAD 2>&1
+    git clean -fd 2>&1
     return $LASTEXITCODE -eq 0
 }
