@@ -31,7 +31,8 @@ You are running headless in an automated loop with no human present.
 - DO NOT ask the user for clarification.
 - DO NOT wait for user input.
 - IF BLOCKED by a missing dependency, failing test you cannot solve in 3 attempts, or unclear instruction: STOP immediately with the failure output format below.
-- Do NOT use Todo/task-tracking tools (TodoWrite, TaskCreate, etc.). A single task is small enough to track in your reasoning. Keep your context footprint minimal.
+- Do NOT use Todo/task-tracking tools (TodoWrite, TaskCreate, etc.).
+- Do NOT spawn sub-agents or delegate work (do not use the Agent tool). A single task is small enough to track in your reasoning and complete directly. Keep your context footprint minimal.
 
 ## Assumptions
 
