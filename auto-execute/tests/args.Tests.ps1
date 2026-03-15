@@ -9,6 +9,7 @@ Describe "Split-AxeArguments" {
         $result.MainClaude | Should -Be "claude_stable_ali"
         $result.BackupClaude | Should -BeNull
         $result.PlanInput | Should -Be "mask-endpoint"
+        $result.StartTask | Should -Be 0
     }
 
     It "parses two claude binaries and plan" {
@@ -16,6 +17,7 @@ Describe "Split-AxeArguments" {
         $result.MainClaude | Should -Be "claude_stable_ali"
         $result.BackupClaude | Should -Be "claude_stable_any"
         $result.PlanInput | Should -Be "mask-endpoint"
+        $result.StartTask | Should -Be 0
     }
 
     It "handles plan argument between claude binaries" {
@@ -56,5 +58,28 @@ Describe "Split-AxeArguments" {
     It "throws when more than 1 non-claude argument is provided" {
         { Split-AxeArguments -Arguments @("claude_a", "plan1", "plan2") } |
             Should -Throw "*Too many non-claude arguments*"
+    }
+
+    It "parses bare numeric argument as StartTask" {
+        $result = Split-AxeArguments -Arguments @("claude_stable_kimi", "claude_stable_glm", "latest", "12")
+        $result.MainClaude | Should -Be "claude_stable_kimi"
+        $result.BackupClaude | Should -Be "claude_stable_glm"
+        $result.PlanInput | Should -Be "latest"
+        $result.StartTask | Should -Be 12
+    }
+
+    It "parses --Start-task flag as StartTask" {
+        $result = Split-AxeArguments -Arguments @("claude_stable_kimi", "claude_stable_glm", "latest", "--Start-task", "12")
+        $result.MainClaude | Should -Be "claude_stable_kimi"
+        $result.BackupClaude | Should -Be "claude_stable_glm"
+        $result.PlanInput | Should -Be "latest"
+        $result.StartTask | Should -Be 12
+    }
+
+    It "parses -StartTask flag as StartTask" {
+        $result = Split-AxeArguments -Arguments @("claude_a", "my-plan", "-StartTask", "5")
+        $result.MainClaude | Should -Be "claude_a"
+        $result.PlanInput | Should -Be "my-plan"
+        $result.StartTask | Should -Be 5
     }
 }

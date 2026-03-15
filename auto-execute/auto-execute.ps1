@@ -25,6 +25,9 @@ $parsed = Split-AxeArguments -Arguments $Arguments
 $ClaudeBin = $parsed.MainClaude
 $BackupClaudeBin = $parsed.BackupClaude
 $Plan = Resolve-PlanPath -PlanInput $parsed.PlanInput
+if ($parsed.StartTask -gt 0 -and $StartTask -eq 0) {
+    $StartTask = $parsed.StartTask
+}
 
 # --- Phase 1a: Pre-flight (before hooks) ---
 $errors = Test-PreFlightEarly -ClaudeBin $ClaudeBin -PlanPath $Plan

@@ -8,10 +8,17 @@ function Split-AxeArguments {
 
     $claudeBinaries = @()
     $otherArgs = @()
+    $startTask = 0
 
-    foreach ($arg in $Arguments) {
-        if ($arg -match '^claude') {
+    for ($i = 0; $i -lt $Arguments.Count; $i++) {
+        $arg = $Arguments[$i]
+        if ($arg -match '^--?Start-?task$' -and ($i + 1) -lt $Arguments.Count -and $Arguments[$i + 1] -match '^\d+$') {
+            $startTask = [int]$Arguments[$i + 1]
+            $i++
+        } elseif ($arg -match '^claude') {
             $claudeBinaries += $arg
+        } elseif ($arg -match '^\d+$') {
+            $startTask = [int]$arg
         } else {
             $otherArgs += $arg
         }
@@ -34,5 +41,6 @@ function Split-AxeArguments {
         MainClaude   = $claudeBinaries[0]
         BackupClaude = if ($claudeBinaries.Count -gt 1) { $claudeBinaries[1] } else { $null }
         PlanInput    = $otherArgs[0]
+        StartTask    = $startTask
     }
 }
