@@ -110,4 +110,20 @@ Describe "Invoke-TreeCleanup" {
         $result.Message | Should -Be "Removed untracked debris after successful commit"
         $result.Details | Should -Be "Removing backup.txt"
     }
+
+    It "Resets after failed task with debris (NewCommit=false, CleanTree=false)" {
+        Mock git {
+            if ($args[0] -eq 'reset') {
+                return "HEAD is now at abc1234"
+            }
+            if ($args[0] -eq 'clean') {
+                return ""
+            }
+        }
+
+        $result = Invoke-TreeCleanup -NewCommit $false -CleanTree $false -GitStatus "M file.txt" -TaskNumber 1
+
+        $result.Action | Should -Be "RESET"
+        $result.Message | Should -Be "Hard reset to HEAD after failed task"
+    }
 }

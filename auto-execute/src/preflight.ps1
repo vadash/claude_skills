@@ -108,4 +108,26 @@ function Invoke-TreeCleanup {
             Message = "git clean failed: $output"
         }
     }
+
+    # Failure with debris: Task failed, messy working tree
+    # Need hard reset to get back to known good state
+    # Reset to HEAD (discards tracked changes)
+    $resetOutput = git reset --hard HEAD 2>&1
+    $resetOk = $LASTEXITCODE -eq 0
+
+    # Also clean untracked (in case reset left any)
+    $cleanOutput = git clean -fd 2>&1
+    $cleanOk = $LASTEXITCODE -eq 0
+
+    if ($resetOk -and $cleanOk) {
+        return @{
+            Action = "RESET"
+            Message = "Hard reset to HEAD after failed task"
+            Details = "$resetOutput; $cleanOutput"
+        }
+    }
+    return @{
+        Action = "RESET_FAILED"
+        Message = "Reset failed. Reset: $resetOutput; Clean: $cleanOutput"
+    }
 }
