@@ -158,4 +158,45 @@ Describe "Invoke-TreeCleanup" {
         $result.Action | Should -Be "RESET_FAILED"
         $result.Message | Should -Match "Reset failed"
     }
+
+    Context "Decision Matrix" {
+        It "ExitOk=true, NewCommit=true, CleanTree=false => CLEANED" {
+            Mock git { return "Removing backup.txt" }
+
+            $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
+            $result.Action | Should -Be "CLEANED"
+        }
+
+        It "ExitOk=false, NewCommit=true, CleanTree=false => CLEANED (exit code ignored if commit exists)" {
+            Mock git { return "Removing backup.txt" }
+
+            $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
+            $result.Action | Should -Be "CLEANED"
+        }
+
+        It "ExitOk=true, NewCommit=false, CleanTree=false => RESET (dirty tree, no commit)" {
+            Mock git {
+                if ($args[0] -eq 'reset') { return "HEAD is now at abc1234" }
+                if ($args[0] -eq 'clean') { return "" }
+            }
+
+            $result = Invoke-TreeCleanup -NewCommit $false -CleanTree $false -GitStatus "M file.txt" -TaskNumber 1
+            $result.Action | Should -Be "RESET"
+        }
+
+        It "ExitOk=false, NewCommit=false, CleanTree=false => RESET (total failure)" {
+            Mock git {
+                if ($args[0] -eq 'reset') { return "HEAD is now at abc1234" }
+                if ($args[0] -eq 'clean') { return "" }
+            }
+
+            $result = Invoke-TreeCleanup -NewCommit $false -CleanTree $false -GitStatus "M file.txt" -TaskNumber 1
+            $result.Action | Should -Be "RESET"
+        }
+
+        It "ExitOk=true, NewCommit=false, CleanTree=true => NONE (clean no-op)" {
+            $result = Invoke-TreeCleanup -NewCommit $false -CleanTree $true -GitStatus "" -TaskNumber 1
+            $result.Action | Should -Be "NONE"
+        }
+    }
 }
