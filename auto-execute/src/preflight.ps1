@@ -76,3 +76,17 @@ function Save-DirtyState {
     git clean -fd 2>&1
     return $LASTEXITCODE -eq 0
 }
+
+function Invoke-TreeCleanup {
+    param(
+        [bool]$NewCommit,
+        [bool]$CleanTree,
+        [string]$GitStatus,
+        [int]$TaskNumber
+    )
+
+    # Nothing to clean
+    if ($CleanTree) {
+        return @{ Action = "NONE"; Message = "Tree clean" }
+    }
+}

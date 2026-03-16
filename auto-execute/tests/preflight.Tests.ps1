@@ -89,3 +89,11 @@ Describe "Test-TaskSuccess" {
         $result.CleanTree | Should -BeTrue
     }
 }
+
+Describe "Invoke-TreeCleanup" {
+    It "Returns NONE when tree is clean" {
+        $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $true -GitStatus "" -TaskNumber 1
+        $result.Action | Should -Be "NONE"
+        $result.Message | Should -Be "Tree clean"
+    }
+}
