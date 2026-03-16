@@ -67,16 +67,6 @@ function Test-TaskSuccess {
     return $signals
 }
 
-function Save-DirtyState {
-    param(
-        [int]$TaskNumber
-    )
-
-    git reset --hard HEAD 2>&1
-    git clean -fd 2>&1
-    return $LASTEXITCODE -eq 0
-}
-
 function Invoke-TreeCleanup {
     param(
         [bool]$NewCommit,

@@ -240,7 +240,87 @@ try {
             $summaryEntries += $entry
             $taskIndex++
         } else {
+            # Task failed one or more signals - analyze and recover
             $consecutiveFailures++
+
+            # --- Smart guard logic ---
+            $cleanup = Invoke-TreeCleanup `
+                -NewCommit $signals.NewCommit `
+                -CleanTree $signals.CleanTree `
+                -GitStatus $gitStatus `
+                -TaskNumber $currentTask
+
+            Write-Host "Task $currentTask cleanup: $($cleanup.Message)" -ForegroundColor Yellow
+
+            # Success with debris: Cleaned up, treat as success
+            if ($cleanup.Action -eq "CLEANED") {
+                $consecutiveFailures = 0
+                $completedCount++
+                $useBackup = $false
+                $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
+                    -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
+                    -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                    -ClaudeBin $activeClaude -PassSuffix "(auto-cleaned)"
+                Write-Host $entry -ForegroundColor Green
+                $summaryEntries += $entry
+                $taskIndex++
+
+                # Accumulate tokens before continuing
+                $overallMetrics.Input += $taskTokens.Input
+                $overallMetrics.Output += $taskTokens.Output
+                $overallMetrics.CacheRead += $taskTokens.CacheRead
+                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                $overallMetrics.CostUSD += $taskTokens.CostUSD
+                if ($taskPeakContext -gt $overallPeakContext) {
+                    $overallPeakContext = $taskPeakContext
+                }
+                continue
+            }
+
+            # Success with debris but cleanup failed: Log warning, continue as success
+            if ($cleanup.Action -eq "CLEAN_FAILED") {
+                $consecutiveFailures = 0
+                $completedCount++
+                $useBackup = $false
+                $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
+                    -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
+                    -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                    -ClaudeBin $activeClaude -PassSuffix "(cleanup failed)"
+                Write-Host $entry -ForegroundColor Yellow
+                Write-Host "Warning: Cleanup failed for task $currentTask. Manual intervention may be needed." -ForegroundColor Yellow
+                $summaryEntries += $entry
+                $taskIndex++
+
+                # Accumulate tokens before continuing
+                $overallMetrics.Input += $taskTokens.Input
+                $overallMetrics.Output += $taskTokens.Output
+                $overallMetrics.CacheRead += $taskTokens.CacheRead
+                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                $overallMetrics.CostUSD += $taskTokens.CostUSD
+                if ($taskPeakContext -gt $overallPeakContext) {
+                    $overallPeakContext = $taskPeakContext
+                }
+                continue
+            }
+
+            # Failure with debris and reset failed: Stop execution
+            if ($cleanup.Action -eq "RESET_FAILED") {
+                $running = $false
+                $stopReason = "Reset failed after dirty tree: $($cleanup.Message)"
+
+                # Accumulate tokens before stopping
+                $overallMetrics.Input += $taskTokens.Input
+                $overallMetrics.Output += $taskTokens.Output
+                $overallMetrics.CacheRead += $taskTokens.CacheRead
+                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                $overallMetrics.CostUSD += $taskTokens.CostUSD
+                if ($taskPeakContext -gt $overallPeakContext) {
+                    $overallPeakContext = $taskPeakContext
+                }
+                break
+            }
+
+            # RESET case or NONE with failure: Determine failure reasons and retry logic
             $failReasons = @()
 
             # Include specific error details if captured (e.g., max turns)
@@ -251,10 +331,9 @@ try {
             }
 
             if (-not $signals.NewCommit) { $failReasons += "no new commit" }
-            if (-not $signals.CleanTree) { $failReasons += "dirty tree" }
 
             # Can retry with backup if: backup exists, not already using backup,
-            # and not a context-limit kill (dirty tree ok - we'll stash first)
+            # and not a context-limit kill
             $canRetry = $BackupClaudeBin -and (-not $useBackup) -and
                         ($monitorResult.StopReason -notmatch "^Context limit")
 
@@ -273,32 +352,8 @@ try {
             Write-Host $entry -ForegroundColor Red
             $summaryEntries += $entry
 
-            # Dirty tree handling — stash and retry with backup if available
-            if (-not $signals.CleanTree) {
-                Save-DirtyState -TaskNumber $currentTask | Out-Null
-                Write-Host "Task $currentTask left uncommitted changes. Reset." -ForegroundColor Yellow
-                if ($canRetry) {
-                    # Backup available — retry same task with clean slate
-                    $useBackup = $true
-                    # Accumulate tokens from this attempt before retrying
-                    $overallMetrics.Input += $taskTokens.Input
-                    $overallMetrics.Output += $taskTokens.Output
-                    $overallMetrics.CacheRead += $taskTokens.CacheRead
-                    $overallMetrics.CacheWrite += $taskTokens.CacheWrite
-                    $overallMetrics.CostUSD += $taskTokens.CostUSD
-                    if ($taskPeakContext -gt $overallPeakContext) {
-                        $overallPeakContext = $taskPeakContext
-                    }
-                    continue
-                }
-                # No backup available — stop
-                $running = $false
-                $stopReason = "Dirty tree (changes reset)"
-                continue
-            }
-
             if ($canRetry) {
-                # Main failed, backup available — retry same task
+                # Backup available — retry same task with clean slate
                 $useBackup = $true
                 # Accumulate tokens from this attempt before retrying
                 $overallMetrics.Input += $taskTokens.Input
@@ -312,10 +367,11 @@ try {
                 continue
             }
 
-            # Normal failure or backup already tried
-            $useBackup = $false
+            # No backup available or backup already tried — stop
+            $running = $false
+            $stopReason = "Task failed: $failReason"
+
             if ($consecutiveFailures -ge $MaxFailures) {
-                $running = $false
                 $stopReason = "Max failures reached ($MaxFailures consecutive)"
             }
         }
