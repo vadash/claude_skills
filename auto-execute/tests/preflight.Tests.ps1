@@ -126,4 +126,36 @@ Describe "Invoke-TreeCleanup" {
         $result.Action | Should -Be "RESET"
         $result.Message | Should -Be "Hard reset to HEAD after failed task"
     }
+
+    It "Reports CLEAN_FAILED when git clean fails" {
+        Mock git {
+            if ($args[0] -eq 'clean') {
+                $global:LASTEXITCODE = 1
+                return "fatal: not a git repository"
+            }
+        }
+
+        $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
+
+        $result.Action | Should -Be "CLEAN_FAILED"
+        $result.Message | Should -Match "git clean failed"
+    }
+
+    It "Reports RESET_FAILED when git reset fails" {
+        Mock git {
+            if ($args[0] -eq 'reset') {
+                $global:LASTEXITCODE = 1
+                return "fatal: ambiguous argument 'HEAD'"
+            }
+            if ($args[0] -eq 'clean') {
+                $global:LASTEXITCODE = 0
+                return ""
+            }
+        }
+
+        $result = Invoke-TreeCleanup -NewCommit $false -CleanTree $false -GitStatus "M file.txt" -TaskNumber 1
+
+        $result.Action | Should -Be "RESET_FAILED"
+        $result.Message | Should -Match "Reset failed"
+    }
 }
