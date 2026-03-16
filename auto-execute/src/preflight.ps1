@@ -89,4 +89,23 @@ function Invoke-TreeCleanup {
     if ($CleanTree) {
         return @{ Action = "NONE"; Message = "Tree clean" }
     }
+
+    # Success with debris: Task committed but left temp files
+    # Safe to clean - the real work is in git history
+    if ($NewCommit) {
+        # git clean -fd only removes untracked files (safe)
+        # -f = force, -d = include directories
+        $output = git clean -fd 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            return @{
+                Action = "CLEANED"
+                Message = "Removed untracked debris after successful commit"
+                Details = $output
+            }
+        }
+        return @{
+            Action = "CLEAN_FAILED"
+            Message = "git clean failed: $output"
+        }
+    }
 }

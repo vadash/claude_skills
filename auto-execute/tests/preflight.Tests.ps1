@@ -96,4 +96,18 @@ Describe "Invoke-TreeCleanup" {
         $result.Action | Should -Be "NONE"
         $result.Message | Should -Be "Tree clean"
     }
+
+    It "Cleans debris after successful commit (NewCommit=true, CleanTree=false)" {
+        Mock git {
+            if ($args[0] -eq 'clean') {
+                return "Removing backup.txt"
+            }
+        }
+
+        $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
+
+        $result.Action | Should -Be "CLEANED"
+        $result.Message | Should -Be "Removed untracked debris after successful commit"
+        $result.Details | Should -Be "Removing backup.txt"
+    }
 }
