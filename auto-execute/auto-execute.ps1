@@ -332,17 +332,15 @@ try {
 
             if (-not $signals.NewCommit) { $failReasons += "no new commit" }
 
-            # Can retry with backup if: backup exists, not already using backup,
-            # and not a context-limit kill
-            $canRetry = $BackupClaudeBin -and (-not $useBackup) -and
-                        ($monitorResult.StopReason -notmatch "^Context limit")
+            # Can retry with backup if backup exists and not already using backup
+            $canRetry = $BackupClaudeBin -and (-not $useBackup)
 
-            if ($monitorResult.StopReason -match "^Context limit") {
-                $failReason = $monitorResult.StopReason
-                $running = $false
-            } else {
-                $failReason = $failReasons -join ", "
+            # Include stop reason from monitor if present
+            if ($monitorResult.StopReason) {
+                $failReasons += $monitorResult.StopReason
             }
+
+            $failReason = $failReasons -join ", "
 
             $failSuffix = if ($canRetry) { "retrying with backup" } else { "STOPPED" }
             $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
