@@ -34,6 +34,10 @@ Before defining tasks, map out which files will be created or modified:
 - Prefer smaller, focused files over large ones
 - In existing codebases, follow established patterns
 
+**File Structure Overview:**
+- Create: `path/to/new/file.js` - brief description
+- Modify: `path/to/existing.js` - brief description
+
 ## Plan Format
 
 Save to `docs/plans/YYYY-MM-DD-<feature-name>.md`:
@@ -106,6 +110,17 @@ Every task follows the TDD red-green cycle: start with a failing test, then writ
 - Complete code in the plan — never "add validation here"
 - Exact commands with expected output
 - DRY, YAGNI, frequent commits
+
+## Common Pitfalls (Optional)
+
+For complex tasks, add a pitfalls section after **Purpose**:
+
+```markdown
+**Common Pitfalls:**
+- Don't forget to import `defaultSettings` from `src/constants.js`
+- Mock `confirm()` in tests - it blocks execution
+- Remember to await async functions in tests
+```
 
 ## User Review
 
