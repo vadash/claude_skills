@@ -27,8 +27,8 @@ function Split-AxeArguments {
     if ($claudeBinaries.Count -eq 0) {
         throw "No claude binary specified. At least one argument must start with 'claude'."
     }
-    if ($claudeBinaries.Count -gt 2) {
-        throw "Too many claude binaries specified (max 2). Got: $($claudeBinaries -join ', ')"
+    if ($claudeBinaries.Count -gt 5) {
+        throw "Too many claude binaries specified (max 5). Got: $($claudeBinaries -join ', ')"
     }
     if ($otherArgs.Count -eq 0) {
         throw "No plan argument found. One non-claude argument is required."
@@ -38,9 +38,8 @@ function Split-AxeArguments {
     }
 
     return @{
-        MainClaude   = $claudeBinaries[0]
-        BackupClaude = if ($claudeBinaries.Count -gt 1) { $claudeBinaries[1] } else { $null }
-        PlanInput    = $otherArgs[0]
-        StartTask    = $startTask
+        ClaudeBinaries = $claudeBinaries  # Array of 1-5 binaries
+        PlanInput      = $otherArgs[0]
+        StartTask      = $startTask
     }
 }
