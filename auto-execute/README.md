@@ -27,29 +27,38 @@ The skill is installed globally at `~/.claude/skills/auto-execute/`. No per-repo
 ### Basic — run all tasks from start
 
 ```powershell
-& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" -Plan "docs/plans/my-plan.md"
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_stable_kimi my-plan
 ```
 
-Starts from task 1. Assumes nothing done yet.
+Starts from task 1. Assumes nothing done yet. The plan name can be a partial match (e.g., `my-plan` matches `docs/plans/2026-03-14-my-plan.md`).
 
 ### Resume from a specific task
 
 ```powershell
-& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" -Plan "docs/plans/my-plan.md" -StartTask 3
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_stable_kimi my-plan 3
 ```
 
 Assumes tasks 1-2 are already complete.
 
-### All parameters
+### Multi-binary execution (failover)
+
+Provide 1-5 Claude binaries. Each binary gets exactly one attempt per task.
+
+```powershell
+# 2 binaries — retry with second if first fails
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_stable_kimi claude_stable_any my-plan
+
+# 5 binaries — maximum retries
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_a claude_b claude_c claude_d claude_e my-plan
+```
+
+### Named parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `-Plan` | *(required)* | Path to the plan file (relative to repo root) |
-| `-ClaudeBin` | `claude` | Claude CLI binary name or path |
 | `-MaxTurns` | `80` | Max Claude turns per task |
 | `-TaskTimeout` | `600` | Seconds of idle time before killing a stuck task |
 | `-ContextLimit` | `100000` | Token threshold — wrapper kills task when peak context exceeds this |
-| `-MaxFailures` | `2` | Consecutive failures before stopping the loop |
 | `-StartTask` | `0` | Start at specific task (0 = start from 1, N = assumes 1..N-1 done) |
 | `-LogDir` | `logs/auto-execute` | Where run/task logs are written |
 
@@ -57,13 +66,16 @@ Assumes tasks 1-2 are already complete.
 
 ```powershell
 # Quick run with shorter timeout
-& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" -Plan "docs/plans/auth.md" -TaskTimeout 600
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_stable_kimi auth -TaskTimeout 600
 
-# Allow more retries and turns
-& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" -Plan "docs/plans/big-refactor.md" -MaxTurns 60 -MaxFailures 3
+# Allow more turns
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_stable_kimi big-refactor -MaxTurns 60
 
-# Use a specific claude binary
-& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" -Plan "docs/plans/auth.md" -ClaudeBin "C:\bin\claude.exe"
+# Use multiple binaries for redundancy
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_stable_kimi claude-opus-4-6 claude-sonnet-4-6 my-plan
+
+# Resume from task 5
+& "C:\Users\vadash\.claude\skills\auto-execute\auto-execute.ps1" claude_stable_kimi my-plan -StartTask 5
 ```
 
 ## What it does
@@ -74,14 +86,14 @@ For each task from start to finish:
 2. **Launch** — creates per-task temp file (preamble + task content), runs `claude -p "/auto-execute task-N.md" --dangerously-skip-permissions`
 3. **Monitor** — tails output in real-time, tracks peak context usage per task, enforces idle timeout
 4. **Verify** — checks 3 signals: exit code 0, new commit, clean tree
-5. **Decide** — on success advances to next task; on failure stashes dirty state or retries
+5. **Decide** — on success advances to next task; on failure tries next binary (if available) or stops
 
 Each task logs peak context extracted from Claude Code's transcript JSONL file (`~/.claude/projects/<hash>/<session_id>.jsonl`), which contains accurate per-turn usage data including cached tokens. Context size per turn = `input_tokens + cache_read_input_tokens + cache_creation_input_tokens`.
 
 Stops when:
 - All tasks complete
 - Cancelled by user (Ctrl+C, Escape, or Q) — kills child process cleanly via `taskkill /F /T`; also detects SIGINT exit codes (130/3221225786) when child swallows the interrupt
-- Consecutive failures hit `-MaxFailures`
+- All binaries exhausted for a task (each binary gets one attempt)
 - Context limit exceeded (wrapper kills process when peak context > `-ContextLimit`)
 - Dirty tree detected (changes are git-stashed)
 - Timeout exceeded

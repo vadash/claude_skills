@@ -6,7 +6,6 @@ param(
     [int]    $MaxTurns     = 80,
     [int]    $TaskTimeout  = 600,
     [int]    $ContextLimit = 100000,
-    [int]    $MaxFailures  = 2,
     [int]    $StartTask    = 0,
     [string] $LogDir       = "logs/auto-execute",
     [Parameter(Mandatory, ValueFromRemainingArguments, Position=0)] [string[]] $Arguments
@@ -26,11 +25,6 @@ $ClaudeBinaries = $parsed.ClaudeBinaries  # Array of 1-5 binaries
 $Plan = Resolve-PlanPath -PlanInput $parsed.PlanInput
 if ($parsed.StartTask -gt 0 -and $StartTask -eq 0) {
     $StartTask = $parsed.StartTask
-}
-
-# DEPRECATED: MaxFailures is no longer used (each binary gets 1 try)
-if ($MaxFailures -ne 2) {  # 2 is the default, so if it's different, user specified it
-    Write-Host "WARNING: -MaxFailures parameter is deprecated. Each binary gets exactly 1 attempt." -ForegroundColor Yellow
 }
 
 # --- Phase 1a: Pre-flight (before hooks) ---
@@ -130,9 +124,7 @@ Clear-LogDirectory -LogDir $LogDir
 
 # --- Phase 3: Main Loop ---
 $running = $true
-# REMOVED: $consecutiveFailures = 0
 $completedCount = 0
-# REMOVED: $useBackup = $false
 $overallStart = [System.Diagnostics.Stopwatch]::StartNew()
 $runTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $summaryLogPath = Join-Path $LogDir "run-$runTimestamp.log"
