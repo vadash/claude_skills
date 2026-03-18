@@ -11,7 +11,9 @@ function Format-TaskLogEntry {
         [int]$PeakContext = 0,
         [int]$ContextLimit = 0,
         [string]$ClaudeBin = "",
-        [string]$FailSuffix = "STOPPED"
+        [string]$FailSuffix = "STOPPED",
+        [int]$AttemptNumber = 0,
+        [int]$TotalBinaries = 0
     )
 
     $timestamp = Get-Date -Format "HH:mm:ss"
@@ -21,7 +23,13 @@ function Format-TaskLogEntry {
         $ctxStr = " | Peak ctx: $(Format-ContextSize $PeakContext)/$(Format-ContextSize $ContextLimit)"
     }
 
-    $binTag = if ($ClaudeBin) { " [$ClaudeBin]" } else { "" }
+    # Build attempt info for display
+    $attemptStr = ""
+    if ($AttemptNumber -gt 0 -and $TotalBinaries -gt 0) {
+        $attemptStr = " (attempt $AttemptNumber/$TotalBinaries)"
+    }
+
+    $binTag = if ($ClaudeBin) { " [$ClaudeBin]$attemptStr" } else { "" }
 
     if ($Passed) {
         $shortHash = if ($CommitHash.Length -ge 7) { $CommitHash.Substring(0, 7) } else { $CommitHash }
