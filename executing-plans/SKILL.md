@@ -23,6 +23,10 @@ Examples:
 - `/executing-plans docs/plans/2025-01-15-auth.md do task 1`
 - `/executing-plans docs/plans/2025-01-15-auth.md do task 2-4`
 
+**Task does not exist?** If the user requests a task number that exceeds the tasks in the plan, inform them:
+
+> "Task [N] does not exist in this plan. The plan contains [X] task(s): [task list or description]."
+
 ## Assumptions
 
 Before starting, these MUST be true:
@@ -59,5 +63,10 @@ After completing all requested tasks:
 
 > "Tasks [N-M] complete. All tests passing, working tree clean.
 > Run `/clear`, then `/executing-plans [plan-path] do task [next]` to continue."
+
+**No next task?** If task [N] was the final task in the plan, instead report:
+
+> "Tasks [N-M] complete. All tests passing, working tree clean.
+> This was the last task in the plan."
 
 **Stop.** Do not continue beyond the requested scope.
