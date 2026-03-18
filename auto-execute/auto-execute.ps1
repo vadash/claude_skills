@@ -22,17 +22,24 @@ param(
 
 # --- Phase 0: Parse arguments ---
 $parsed = Split-AxeArguments -Arguments $Arguments
-$ClaudeBin = $parsed.MainClaude
-$BackupClaudeBin = $parsed.BackupClaude
+$ClaudeBinaries = $parsed.ClaudeBinaries  # Array of 1-5 binaries
 $Plan = Resolve-PlanPath -PlanInput $parsed.PlanInput
 if ($parsed.StartTask -gt 0 -and $StartTask -eq 0) {
     $StartTask = $parsed.StartTask
 }
 
+# DEPRECATED: MaxFailures is no longer used (each binary gets 1 try)
+if ($MaxFailures -ne 2) {  # 2 is the default, so if it's different, user specified it
+    Write-Host "WARNING: -MaxFailures parameter is deprecated. Each binary gets exactly 1 attempt." -ForegroundColor Yellow
+}
+
 # --- Phase 1a: Pre-flight (before hooks) ---
-$errors = Test-PreFlightEarly -ClaudeBin $ClaudeBin -PlanPath $Plan
-if ($BackupClaudeBin -and -not (Get-Command $BackupClaudeBin -ErrorAction SilentlyContinue)) {
-    $errors += "Backup CLI binary '$BackupClaudeBin' not found in PATH."
+$errors = Test-PreFlightEarly -ClaudeBin $ClaudeBinaries[0] -PlanPath $Plan
+# Validate all binaries exist
+for ($i = 1; $i -lt $ClaudeBinaries.Count; $i++) {
+    if (-not (Get-Command $ClaudeBinaries[$i] -ErrorAction SilentlyContinue)) {
+        $errors += "CLI binary '$($ClaudeBinaries[$i])' (index $i) not found in PATH."
+    }
 }
 if ($errors.Count -gt 0) {
     Write-Host "Pre-flight checks failed:" -ForegroundColor Red
@@ -114,18 +121,18 @@ if ($StartTask -gt 0) {
 
 Write-Host "Starting auto-execute: $totalTasks tasks" -ForegroundColor Cyan
 Write-Host "Plan: $Plan" -ForegroundColor Cyan
+$binariesStr = $ClaudeBinaries -join ", "
 $ctxLimitStr = Format-ContextSize $ContextLimit
-$backupStr = if ($BackupClaudeBin) { " (backup: $BackupClaudeBin)" } else { "" }
-Write-Host "CLI: $ClaudeBin$backupStr | MaxTurns: $MaxTurns | Timeout: ${TaskTimeout}s | MaxFailures: $MaxFailures | ContextLimit: $ctxLimitStr" -ForegroundColor Cyan
+Write-Host "CLI binaries: $binariesStr | MaxTurns: $MaxTurns | Timeout: ${TaskTimeout}s | ContextLimit: $ctxLimitStr" -ForegroundColor Cyan
 
 # Clean old log files from previous runs
 Clear-LogDirectory -LogDir $LogDir
 
 # --- Phase 3: Main Loop ---
 $running = $true
-$consecutiveFailures = 0
+# REMOVED: $consecutiveFailures = 0
 $completedCount = 0
-$useBackup = $false
+# REMOVED: $useBackup = $false
 $overallStart = [System.Diagnostics.Stopwatch]::StartNew()
 $runTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $summaryLogPath = Join-Path $LogDir "run-$runTimestamp.log"
@@ -149,60 +156,145 @@ $emptyStdinPath = [System.IO.Path]::GetTempFileName()
 try {
     while ($running -and $taskIndex -lt $planData.Tasks.Count) {
         $currentTask = $planData.Tasks[$taskIndex].Number
-        # Record baseline
-        $beforeHash = (git rev-parse HEAD 2>&1).ToString().Trim()
-        $taskStart = [System.Diagnostics.Stopwatch]::StartNew()
-        $taskTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $taskLogPath = Join-Path $LogDir "task-$currentTask-$taskTimestamp.log"
+        $binaryIndex = 0          # NEW: Track which binary we're using
+        $taskSucceeded = $false   # NEW: Track if task succeeded
 
-        Write-Host "`n--- Task $currentTask/$totalTasks ---" -ForegroundColor Cyan
+        # NEW: Inner loop tries each binary until one succeeds or all fail
+        while ($binaryIndex -lt $ClaudeBinaries.Count -and $taskSucceeded -eq $false) {
+            $activeClaude = $ClaudeBinaries[$binaryIndex]
+            $attemptNumber = $binaryIndex + 1  # 1-based for display
 
-        # Write per-task temp file
-        $tempTaskPath = Write-TaskTempFile -LogDir $LogDir -TaskNumber $currentTask `
-            -TaskContent $planData.Tasks[$taskIndex].Content `
-            -Preamble $planData.Preamble -PlanPath $Plan
+            # Record baseline
+            $beforeHash = (git rev-parse HEAD 2>&1).ToString().Trim()
+            $taskStart = [System.Diagnostics.Stopwatch]::StartNew()
+            $taskTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $taskLogPath = Join-Path $LogDir "task-$currentTask-$taskTimestamp.log"
 
-        # Build prompt and execute
-        # Pick main or backup binary; resolve full path to handle .cmd/.ps1 extensions
-        $activeClaude = if ($useBackup -and $BackupClaudeBin) { $BackupClaudeBin } else { $ClaudeBin }
-        $claudeCmd = (Get-Command $activeClaude).Source
-        $promptText = "/auto-execute $tempTaskPath"
-        $claudeArgs = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns --output-format stream-json --verbose"
+            Write-Host "`n--- Task $currentTask/$totalTasks (attempt $attemptNumber/$($ClaudeBinaries.Count) with $activeClaude) ---" -ForegroundColor Cyan
 
-        # .ps1 scripts can't be launched directly by Start-Process; wrap with powershell
-        if ($claudeCmd -like '*.ps1') {
-            $argString = "-NoProfile -File `"$claudeCmd`" $claudeArgs"
-            $claudeCmd = "powershell"
-        } else {
-            $argString = $claudeArgs
-        }
+            # Write per-task temp file
+            $tempTaskPath = Write-TaskTempFile -LogDir $LogDir -TaskNumber $currentTask `
+                -TaskContent $planData.Tasks[$taskIndex].Content `
+                -Preamble $planData.Preamble -PlanPath $Plan
 
-        $process = Start-Process -FilePath $claudeCmd `
-            -ArgumentList $argString `
-            -PassThru -NoNewWindow `
-            -RedirectStandardInput $emptyStdinPath `
-            -RedirectStandardOutput $taskLogPath `
-            -RedirectStandardError "$taskLogPath.err"
-        # Monitor the task process (stream-json parsing, keyboard, context, timeout)
-        $monitorResult = Invoke-TaskMonitor -Process $process -TaskLogPath $taskLogPath `
-            -TaskTimeout $TaskTimeout -ContextLimit $ContextLimit `
-            -MaxTurns $MaxTurns -GitRoot $gitRoot -TaskNumber $currentTask
+            # Build prompt and execute
+            $claudeCmd = (Get-Command $activeClaude).Source
+            $promptText = "/auto-execute $tempTaskPath"
+            $claudeArgs = "-p `"$promptText`" --dangerously-skip-permissions --max-turns $MaxTurns --output-format stream-json --verbose"
 
-        $taskExitCode = $monitorResult.ExitCode
-        $taskTokens = $monitorResult.Tokens
-        $taskPeakContext = $monitorResult.PeakContext
-        $taskSessionId = $monitorResult.SessionId
-        $taskErrorDetails = $monitorResult.ErrorDetails
-        $tokenStr = Format-TokenMetrics -Metrics $taskTokens
+            if ($claudeCmd -like '*.ps1') {
+                $argString = "-NoProfile -File `"$claudeCmd`" $claudeArgs"
+                $claudeCmd = "powershell"
+            } else {
+                $argString = $claudeArgs
+            }
 
-        # Check if run was cancelled
-        if ($monitorResult.Cancelled -or $taskExitCode -eq 130 -or $taskExitCode -eq 3221225786) {
+            $process = Start-Process -FilePath $claudeCmd `
+                -ArgumentList $argString `
+                -PassThru -NoNewWindow `
+                -RedirectStandardInput $emptyStdinPath `
+                -RedirectStandardOutput $taskLogPath `
+                -RedirectStandardError "$taskLogPath.err"
+
+            $monitorResult = Invoke-TaskMonitor -Process $process -TaskLogPath $taskLogPath `
+                -TaskTimeout $TaskTimeout -ContextLimit $ContextLimit `
+                -MaxTurns $MaxTurns -GitRoot $gitRoot -TaskNumber $currentTask
+
+            $taskExitCode = $monitorResult.ExitCode
+            $taskTokens = $monitorResult.Tokens
+            $taskPeakContext = $monitorResult.PeakContext
+            $taskSessionId = $monitorResult.SessionId
+            $taskErrorDetails = $monitorResult.ErrorDetails
+            $tokenStr = Format-TokenMetrics -Metrics $taskTokens
+
+            # Check if run was cancelled
+            if ($monitorResult.Cancelled -or $taskExitCode -eq 130 -or $taskExitCode -eq 3221225786) {
+                $taskStart.Stop()
+                Write-Host "`n[!] Run cancelled by user." -ForegroundColor Yellow
+                $running = $false
+                $stopReason = "Cancelled by user (Ctrl+C)"
+
+                $overallMetrics.Input += $taskTokens.Input
+                $overallMetrics.Output += $taskTokens.Output
+                $overallMetrics.CacheRead += $taskTokens.CacheRead
+                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                $overallMetrics.CostUSD += $taskTokens.CostUSD
+                if ($taskPeakContext -gt $overallPeakContext) {
+                    $overallPeakContext = $taskPeakContext
+                }
+                break  # Exit inner while
+            }
+
             $taskStart.Stop()
-            Write-Host "`n[!] Run cancelled by user." -ForegroundColor Yellow
-            $running = $false
-            $stopReason = "Cancelled by user (Ctrl+C)"
+            $taskDuration = $taskStart.Elapsed
 
-            # Accumulate tokens for the aborted task before breaking
+            # Post-task verification
+            $afterHash = (git rev-parse HEAD 2>&1).ToString().Trim()
+            $gitStatus = (git status --porcelain 2>&1) -join ""
+
+            $signals = Test-TaskSuccess -ExitCode $taskExitCode `
+                -BeforeHash $beforeHash -AfterHash $afterHash -GitStatus $gitStatus
+
+            $isCleanNoop = $signals.ExitOk -and $signals.CleanTree -and (-not $signals.NewCommit)
+            $isLastTask = ($taskIndex -eq $planData.Tasks.Count - 1)
+
+            if ($signals.AllPassed -or ($isCleanNoop -and $isLastTask)) {
+                $taskSucceeded = $true
+                $completedCount++
+                $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
+                    -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
+                    -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                    -ClaudeBin $activeClaude -AttemptNumber $attemptNumber -TotalBinaries $ClaudeBinaries.Count
+                Write-Host $entry -ForegroundColor Green
+                $summaryEntries += $entry
+                # Task succeeded, will exit inner while and advance taskIndex
+            } else {
+                # Task failed - try next binary if available
+                $failReasons = @()
+                if ($taskErrorDetails) {
+                    $failReasons += $taskErrorDetails
+                } elseif (-not $signals.ExitOk) {
+                    $failReasons += "exit code $taskExitCode"
+                }
+                if (-not $signals.NewCommit) { $failReasons += "no new commit" }
+                if ($monitorResult.StopReason) { $failReasons += $monitorResult.StopReason }
+
+                $failReason = $failReasons -join ", "
+
+                # Determine if we have more binaries to try
+                $hasMoreBinaries = ($binaryIndex + 1) -lt $ClaudeBinaries.Count
+                $failSuffix = if ($hasMoreBinaries) { "trying next binary" } else { "STOPPED" }
+
+                $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
+                    -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr `
+                    -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                    -ClaudeBin $activeClaude -FailSuffix $failSuffix `
+                    -AttemptNumber $attemptNumber -TotalBinaries $ClaudeBinaries.Count
+                Write-Host $entry -ForegroundColor Red
+                $summaryEntries += $entry
+
+                # Accumulate tokens before potentially continuing
+                $overallMetrics.Input += $taskTokens.Input
+                $overallMetrics.Output += $taskTokens.Output
+                $overallMetrics.CacheRead += $taskTokens.CacheRead
+                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                $overallMetrics.CostUSD += $taskTokens.CostUSD
+                if ($taskPeakContext -gt $overallPeakContext) {
+                    $overallPeakContext = $taskPeakContext
+                }
+
+                if ($hasMoreBinaries) {
+                    $binaryIndex++  # Try next binary (stay on same task)
+                    continue
+                } else {
+                    # All binaries exhausted
+                    $running = $false
+                    $stopReason = "Task $currentTask failed after trying all $($ClaudeBinaries.Count) binaries"
+                    break  # Exit inner while
+                }
+            }
+
+            # Accumulate tokens for successful task
             $overallMetrics.Input += $taskTokens.Input
             $overallMetrics.Output += $taskTokens.Output
             $overallMetrics.CacheRead += $taskTokens.CacheRead
@@ -211,179 +303,14 @@ try {
             if ($taskPeakContext -gt $overallPeakContext) {
                 $overallPeakContext = $taskPeakContext
             }
-            break
         }
 
-        $taskStart.Stop()
-        $taskDuration = $taskStart.Elapsed
-
-        # Post-task verification (multi-signal)
-        $afterHash = (git rev-parse HEAD 2>&1).ToString().Trim()
-        $gitStatus = (git status --porcelain 2>&1) -join ""
-
-        $signals = Test-TaskSuccess -ExitCode $taskExitCode `
-            -BeforeHash $beforeHash -AfterHash $afterHash -GitStatus $gitStatus
-
-        # Last task may have nothing to commit if prior tasks covered all work
-        $isCleanNoop = $signals.ExitOk -and $signals.CleanTree -and (-not $signals.NewCommit)
-        $isLastTask = ($taskIndex -eq $planData.Tasks.Count - 1)
-
-        if ($signals.AllPassed -or ($isCleanNoop -and $isLastTask)) {
-            $consecutiveFailures = 0
-            $completedCount++
-            $useBackup = $false
-            $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
-                -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
-                -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
-                -ClaudeBin $activeClaude
-            Write-Host $entry -ForegroundColor Green
-            $summaryEntries += $entry
-            $taskIndex++
-        } else {
-            # Task failed one or more signals - analyze and recover
-            $consecutiveFailures++
-
-            # --- Smart guard logic ---
-            $cleanup = Invoke-TreeCleanup `
-                -NewCommit $signals.NewCommit `
-                -CleanTree $signals.CleanTree `
-                -GitStatus $gitStatus `
-                -TaskNumber $currentTask
-
-            Write-Host "Task $currentTask cleanup: $($cleanup.Message)" -ForegroundColor Yellow
-
-            # Success with debris: Cleaned up, treat as success
-            if ($cleanup.Action -eq "CLEANED") {
-                $consecutiveFailures = 0
-                $completedCount++
-                $useBackup = $false
-                $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
-                    -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
-                    -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
-                    -ClaudeBin $activeClaude -PassSuffix "(auto-cleaned)"
-                Write-Host $entry -ForegroundColor Green
-                $summaryEntries += $entry
-                $taskIndex++
-
-                # Accumulate tokens before continuing
-                $overallMetrics.Input += $taskTokens.Input
-                $overallMetrics.Output += $taskTokens.Output
-                $overallMetrics.CacheRead += $taskTokens.CacheRead
-                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
-                $overallMetrics.CostUSD += $taskTokens.CostUSD
-                if ($taskPeakContext -gt $overallPeakContext) {
-                    $overallPeakContext = $taskPeakContext
-                }
-                continue
-            }
-
-            # Success with debris but cleanup failed: Log warning, continue as success
-            if ($cleanup.Action -eq "CLEAN_FAILED") {
-                $consecutiveFailures = 0
-                $completedCount++
-                $useBackup = $false
-                $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
-                    -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
-                    -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
-                    -ClaudeBin $activeClaude -PassSuffix "(cleanup failed)"
-                Write-Host $entry -ForegroundColor Yellow
-                Write-Host "Warning: Cleanup failed for task $currentTask. Manual intervention may be needed." -ForegroundColor Yellow
-                $summaryEntries += $entry
-                $taskIndex++
-
-                # Accumulate tokens before continuing
-                $overallMetrics.Input += $taskTokens.Input
-                $overallMetrics.Output += $taskTokens.Output
-                $overallMetrics.CacheRead += $taskTokens.CacheRead
-                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
-                $overallMetrics.CostUSD += $taskTokens.CostUSD
-                if ($taskPeakContext -gt $overallPeakContext) {
-                    $overallPeakContext = $taskPeakContext
-                }
-                continue
-            }
-
-            # Failure with debris and reset failed: Stop execution
-            if ($cleanup.Action -eq "RESET_FAILED") {
-                $running = $false
-                $stopReason = "Reset failed after dirty tree: $($cleanup.Message)"
-
-                # Accumulate tokens before stopping
-                $overallMetrics.Input += $taskTokens.Input
-                $overallMetrics.Output += $taskTokens.Output
-                $overallMetrics.CacheRead += $taskTokens.CacheRead
-                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
-                $overallMetrics.CostUSD += $taskTokens.CostUSD
-                if ($taskPeakContext -gt $overallPeakContext) {
-                    $overallPeakContext = $taskPeakContext
-                }
-                break
-            }
-
-            # RESET case or NONE with failure: Determine failure reasons and retry logic
-            $failReasons = @()
-
-            # Include specific error details if captured (e.g., max turns)
-            if ($taskErrorDetails) {
-                $failReasons += $taskErrorDetails
-            } elseif (-not $signals.ExitOk) {
-                $failReasons += "exit code $taskExitCode"
-            }
-
-            if (-not $signals.NewCommit) { $failReasons += "no new commit" }
-
-            # Can retry with backup if backup exists and not already using backup
-            $canRetry = $BackupClaudeBin -and (-not $useBackup)
-
-            # Include stop reason from monitor if present
-            if ($monitorResult.StopReason) {
-                $failReasons += $monitorResult.StopReason
-            }
-
-            $failReason = $failReasons -join ", "
-
-            $failSuffix = if ($canRetry) { "retrying with backup" } else { "STOPPED" }
-            $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
-                -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr `
-                -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
-                -ClaudeBin $activeClaude -FailSuffix $failSuffix
-            Write-Host $entry -ForegroundColor Red
-            $summaryEntries += $entry
-
-            if ($canRetry) {
-                # Backup available — retry same task with clean slate
-                $useBackup = $true
-                # Accumulate tokens from this attempt before retrying
-                $overallMetrics.Input += $taskTokens.Input
-                $overallMetrics.Output += $taskTokens.Output
-                $overallMetrics.CacheRead += $taskTokens.CacheRead
-                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
-                $overallMetrics.CostUSD += $taskTokens.CostUSD
-                if ($taskPeakContext -gt $overallPeakContext) {
-                    $overallPeakContext = $taskPeakContext
-                }
-                continue
-            }
-
-            # No backup available or backup already tried — stop
-            $running = $false
-            $stopReason = "Task failed: $failReason"
-
-            if ($consecutiveFailures -ge $MaxFailures) {
-                $stopReason = "Max failures reached ($MaxFailures consecutive)"
-            }
+        if ($taskSucceeded) {
+            $taskIndex++  # Advance to next task only after success
         }
 
-        # Accumulate tokens into overall metrics (regardless of task outcome)
-        $overallMetrics.Input += $taskTokens.Input
-        $overallMetrics.Output += $taskTokens.Output
-        $overallMetrics.CacheRead += $taskTokens.CacheRead
-        $overallMetrics.CacheWrite += $taskTokens.CacheWrite
-        $overallMetrics.CostUSD += $taskTokens.CostUSD
-
-        # Track max peak context across all tasks
-        if ($taskPeakContext -gt $overallPeakContext) {
-            $overallPeakContext = $taskPeakContext
+        if (-not $running) {
+            break  # Exit outer while if stopped
         }
     }
 
@@ -409,7 +336,7 @@ try {
         Remove-Item $emptyStdinPath -Force -ErrorAction SilentlyContinue
     }
 
-    # Write summary log (re-create dir — git stash --include-untracked may have removed it)
+    # Write summary log
     if ($summaryEntries.Count -gt 0) {
         $logParent = Split-Path $summaryLogPath -Parent
         if (-not (Test-Path $logParent)) {
@@ -427,10 +354,12 @@ try {
     $overallTokenStr = Format-TokenMetrics -Metrics $overallMetrics
 
     # Final report
+    $binariesLine = "Binaries: $($ClaudeBinaries -join ', ')"
     $report = Format-FinalReport -PlanPath $Plan -CompletedTasks $completedCount `
         -TotalTasks $totalTasks -TotalDuration $overallStart.Elapsed `
         -StopReason $stopReason -LogFile $summaryLogPath -TokenString $overallTokenStr `
         -MaxPeakContext $overallPeakContext -ContextLimit $ContextLimit `
         -NextTask $(if ($taskIndex -lt $planData.Tasks.Count) { $planData.Tasks[$taskIndex].Number } else { 0 })
     Write-Host "`n$report" -ForegroundColor Cyan
+    Write-Host $binariesLine -ForegroundColor Cyan
 }
