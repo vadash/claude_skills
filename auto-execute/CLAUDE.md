@@ -37,8 +37,8 @@ auto-execute claude_stable_kimi claude_stable_glm latest
 auto-execute claude_stable_kimi mask-endpoint 5
 auto-execute claude_stable_kimi mask-endpoint --Start-task 5
 
-# Run tests
-Invoke-Pester -Path "C:\Users\vadash\.claude\skills\auto-execute\tests" -Output Detailed
+# Run tests (bash shell is Unix-style on Windows, so wrap PowerShell commands)
+powershell -NoProfile -Command "Invoke-Pester -Path 'tests' -Output Detailed"
 ```
 
 ## Safety Guards
