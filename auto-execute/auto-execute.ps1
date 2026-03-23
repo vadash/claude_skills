@@ -164,10 +164,14 @@ try {
 
             Write-Host "`n--- Task $currentTask/$totalTasks (attempt $attemptNumber/$($ClaudeBinaries.Count) with $activeClaude) ---" -ForegroundColor Cyan
 
+            # On retry (attempt 2+), feed the full plan for broader context
+            $useFullPlan = $binaryIndex -ge 1
+
             # Write per-task temp file
             $tempTaskPath = Write-TaskTempFile -LogDir $LogDir -TaskNumber $currentTask `
                 -TaskContent $planData.Tasks[$taskIndex].Content `
-                -Preamble $planData.Preamble -PlanPath $Plan
+                -Preamble $planData.Preamble -PlanPath $Plan `
+                -UseFullPlan:$useFullPlan -FullPlanContent $planContent
 
             # Build prompt and execute
             $claudeCmd = (Get-Command $activeClaude).Source

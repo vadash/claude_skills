@@ -59,24 +59,41 @@ function Write-TaskTempFile {
         [string]$TaskContent,
         [string]$Preamble = "",
         [Parameter(Mandatory)]
-        [string]$PlanPath
+        [string]$PlanPath,
+        [switch]$UseFullPlan,
+        [string]$FullPlanContent = ""
     )
 
-    $parts = @()
-    if ($Preamble) {
-        $parts += $Preamble
+    $tempPath = Join-Path $LogDir "task-$TaskNumber.md"
+
+    if ($UseFullPlan -and $FullPlanContent) {
+        # On retry (2nd+ attempt), feed the full plan for broader context
+        $parts = @()
+        $parts += "# Full Plan (retry mode)"
+        $parts += ""
+        $parts += "This is attempt 2+ for task $TaskNumber. The full plan is provided for broader context."
         $parts += ""
         $parts += "---"
         $parts += ""
+        $parts += $FullPlanContent
+        $parts | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
+    } else {
+        # Default: single task with preamble reference
+        $parts = @()
+        if ($Preamble) {
+            $parts += $Preamble
+            $parts += ""
+            $parts += "---"
+            $parts += ""
+        }
+        $parts += $TaskContent
+        $parts += ""
+        $parts += "---"
+        $parts += "Full plan: $PlanPath"
+        $parts += "If this task references other tasks or you need broader context, read the full plan above."
+        $parts | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
     }
-    $parts += $TaskContent
-    $parts += ""
-    $parts += "---"
-    $parts += "Full plan: $PlanPath"
-    $parts += "If this task references other tasks or you need broader context, read the full plan above."
 
-    $tempPath = Join-Path $LogDir "task-$TaskNumber.md"
-    $parts -join "`n" | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
     return $tempPath
 }
 
