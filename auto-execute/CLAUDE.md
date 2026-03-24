@@ -65,3 +65,6 @@ powershell -NoProfile -Command "Invoke-Pester -Path 'tests' -Output Detailed"
 - `src/format.ps1` — formatting and display (6 functions)
 - `src/monitor.ps1` — task monitoring loop (`Invoke-TaskMonitor`; depends on stream + format)
 - `SKILL.md` — Claude Code skill definition (headless task execution rules)
+## Development Notes
+
+- **Git show patch**: Use `git show <commit> -p` not `git show <commit> --no-stat` (fails with "unrecognized argument" on Windows)
