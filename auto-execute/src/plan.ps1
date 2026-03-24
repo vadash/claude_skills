@@ -76,7 +76,7 @@ function Write-TaskTempFile {
         $parts += "---"
         $parts += ""
         $parts += $FullPlanContent
-        $parts | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
+        ($parts -join "`n") | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
     } else {
         # Default: single task with preamble reference
         $parts = @()
@@ -91,7 +91,7 @@ function Write-TaskTempFile {
         $parts += "---"
         $parts += "Full plan: $PlanPath"
         $parts += "If this task references other tasks or you need broader context, read the full plan above."
-        $parts | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
+        ($parts -join "`n") | Set-Content -Path $tempPath -Encoding UTF8 -NoNewline
     }
 
     return $tempPath
