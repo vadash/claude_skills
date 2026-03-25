@@ -97,18 +97,21 @@ Describe "Invoke-TreeCleanup" {
         $result.Message | Should -Be "Tree clean"
     }
 
-    It "Cleans debris after successful commit (NewCommit=true, CleanTree=false)" {
+    It "Cleans debris and restores tracked files after successful commit (NewCommit=true, CleanTree=false)" {
         Mock git {
             if ($args[0] -eq 'clean') {
                 return "Removing backup.txt"
+            }
+            if ($args[0] -eq 'checkout') {
+                return ""
             }
         }
 
         $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
 
         $result.Action | Should -Be "CLEANED"
-        $result.Message | Should -Be "Removed untracked debris after successful commit"
-        $result.Details | Should -Be "Removing backup.txt"
+        $result.Message | Should -Be "Cleaned debris and restored tracked files after successful commit"
+        $result.Details | Should -Match "clean: Removing backup.txt"
     }
 
     It "Resets after failed task with debris (NewCommit=false, CleanTree=false)" {
@@ -133,12 +136,16 @@ Describe "Invoke-TreeCleanup" {
                 $global:LASTEXITCODE = 1
                 return "fatal: not a git repository"
             }
+            if ($args[0] -eq 'checkout') {
+                $global:LASTEXITCODE = 0
+                return ""
+            }
         }
 
         $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
 
         $result.Action | Should -Be "CLEAN_FAILED"
-        $result.Message | Should -Match "git clean failed"
+        $result.Message | Should -Match "Cleanup failed"
     }
 
     It "Reports RESET_FAILED when git reset fails" {
@@ -161,14 +168,20 @@ Describe "Invoke-TreeCleanup" {
 
     Context "Decision Matrix" {
         It "ExitOk=true, NewCommit=true, CleanTree=false => CLEANED" {
-            Mock git { return "Removing backup.txt" }
+            Mock git {
+                if ($args[0] -eq 'clean') { return "Removing backup.txt" }
+                if ($args[0] -eq 'checkout') { return "" }
+            }
 
             $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
             $result.Action | Should -Be "CLEANED"
         }
 
         It "ExitOk=false, NewCommit=true, CleanTree=false => CLEANED (exit code ignored if commit exists)" {
-            Mock git { return "Removing backup.txt" }
+            Mock git {
+                if ($args[0] -eq 'clean') { return "Removing backup.txt" }
+                if ($args[0] -eq 'checkout') { return "" }
+            }
 
             $result = Invoke-TreeCleanup -NewCommit $true -CleanTree $false -GitStatus "?? backup.txt" -TaskNumber 1
             $result.Action | Should -Be "CLEANED"
