@@ -245,48 +245,85 @@ try {
                 $summaryEntries += $entry
                 # Task succeeded, will exit inner while and advance taskIndex
             } else {
-                # Task failed - try next binary if available
-                $failReasons = @()
-                if ($taskErrorDetails) {
-                    $failReasons += $taskErrorDetails
-                } elseif (-not $signals.ExitOk) {
-                    $failReasons += "exit code $taskExitCode"
+                # Task failed one or more signals — attempt cleanup if dirty tree
+                if ($signals.NewCommit -and -not $signals.CleanTree) {
+                    $cleanup = Invoke-TreeCleanup `
+                        -NewCommit $signals.NewCommit `
+                        -CleanTree $signals.CleanTree `
+                        -GitStatus $gitStatus `
+                        -TaskNumber $currentTask
+
+                    Write-Host "  Task $currentTask cleanup: $($cleanup.Action) — $($cleanup.Message)" -ForegroundColor DarkGray
+
+                    if ($cleanup.Action -eq "CLEANED") {
+                        # Commit succeeded; debris was just temp files or line-ending artifacts
+                        $taskSucceeded = $true
+                        $completedCount++
+                        $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $true `
+                            -CommitHash $afterHash -Duration $taskDuration -TokenString $tokenStr `
+                            -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                            -ClaudeBin $activeClaude -AttemptNumber $attemptNumber `
+                            -TotalBinaries $ClaudeBinaries.Count
+                        Write-Host $entry -ForegroundColor Green
+                        $summaryEntries += $entry
+                        # Will exit inner while and advance taskIndex
+                        # Accumulate tokens for the successful (auto-cleaned) task
+                        $overallMetrics.Input += $taskTokens.Input
+                        $overallMetrics.Output += $taskTokens.Output
+                        $overallMetrics.CacheRead += $taskTokens.CacheRead
+                        $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                        $overallMetrics.CostUSD += $taskTokens.CostUSD
+                        if ($taskPeakContext -gt $overallPeakContext) {
+                            $overallPeakContext = $taskPeakContext
+                        }
+                    }
                 }
-                if (-not $signals.NewCommit) { $failReasons += "no new commit" }
-                if ($monitorResult.StopReason) { $failReasons += $monitorResult.StopReason }
 
-                $failReason = $failReasons -join ", "
+                if (-not $taskSucceeded) {
+                    # Genuine failure — collect reasons and try next binary
+                    $failReasons = @()
+                    if ($taskErrorDetails) {
+                        $failReasons += $taskErrorDetails
+                    } elseif (-not $signals.ExitOk) {
+                        $failReasons += "exit code $taskExitCode"
+                    }
+                    if (-not $signals.NewCommit) { $failReasons += "no new commit" }
+                    if (-not $signals.CleanTree) { $failReasons += "dirty tree ($gitStatus)" }
+                    if ($monitorResult.StopReason) { $failReasons += $monitorResult.StopReason }
 
-                # Determine if we have more binaries to try
-                $hasMoreBinaries = ($binaryIndex + 1) -lt $ClaudeBinaries.Count
-                $failSuffix = if ($hasMoreBinaries) { "trying next binary" } else { "STOPPED" }
+                    $failReason = $failReasons -join ", "
 
-                $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
-                    -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr `
-                    -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
-                    -ClaudeBin $activeClaude -FailSuffix $failSuffix `
-                    -AttemptNumber $attemptNumber -TotalBinaries $ClaudeBinaries.Count
-                Write-Host $entry -ForegroundColor Red
-                $summaryEntries += $entry
+                    # Determine if we have more binaries to try
+                    $hasMoreBinaries = ($binaryIndex + 1) -lt $ClaudeBinaries.Count
+                    $failSuffix = if ($hasMoreBinaries) { "trying next binary" } else { "STOPPED" }
 
-                # Accumulate tokens before potentially continuing
-                $overallMetrics.Input += $taskTokens.Input
-                $overallMetrics.Output += $taskTokens.Output
-                $overallMetrics.CacheRead += $taskTokens.CacheRead
-                $overallMetrics.CacheWrite += $taskTokens.CacheWrite
-                $overallMetrics.CostUSD += $taskTokens.CostUSD
-                if ($taskPeakContext -gt $overallPeakContext) {
-                    $overallPeakContext = $taskPeakContext
-                }
+                    $entry = Format-TaskLogEntry -TaskNumber $currentTask -Passed $false `
+                        -Duration $taskDuration -FailReason $failReason -TokenString $tokenStr `
+                        -PeakContext $taskPeakContext -ContextLimit $ContextLimit `
+                        -ClaudeBin $activeClaude -FailSuffix $failSuffix `
+                        -AttemptNumber $attemptNumber -TotalBinaries $ClaudeBinaries.Count
+                    Write-Host $entry -ForegroundColor Red
+                    $summaryEntries += $entry
 
-                if ($hasMoreBinaries) {
-                    $binaryIndex++  # Try next binary (stay on same task)
-                    continue
-                } else {
-                    # All binaries exhausted
-                    $running = $false
-                    $stopReason = "Task $currentTask failed after trying all $($ClaudeBinaries.Count) binaries"
-                    break  # Exit inner while
+                    # Accumulate tokens before potentially continuing
+                    $overallMetrics.Input += $taskTokens.Input
+                    $overallMetrics.Output += $taskTokens.Output
+                    $overallMetrics.CacheRead += $taskTokens.CacheRead
+                    $overallMetrics.CacheWrite += $taskTokens.CacheWrite
+                    $overallMetrics.CostUSD += $taskTokens.CostUSD
+                    if ($taskPeakContext -gt $overallPeakContext) {
+                        $overallPeakContext = $taskPeakContext
+                    }
+
+                    if ($hasMoreBinaries) {
+                        $binaryIndex++  # Try next binary (stay on same task)
+                        continue
+                    } else {
+                        # All binaries exhausted
+                        $running = $false
+                        $stopReason = "Task $currentTask failed after trying all $($ClaudeBinaries.Count) binaries"
+                        break  # Exit inner while
+                    }
                 }
             }
 
