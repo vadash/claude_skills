@@ -11,6 +11,8 @@ Read the design document and produce a detailed, sequential implementation plan 
 
 Write the plan assuming the implementer has zero context about the codebase or problem domain. Document everything: which files to touch, complete code, exact test commands, expected output.
 
+Do not read existing plans, it waste tokens.
+
 <HARD-GATE>
 Do NOT write implementation code. Your ONLY output is a plan document. Stop after the plan is committed and the user approves it.
 </HARD-GATE>
