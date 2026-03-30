@@ -54,6 +54,7 @@ $gitRoot = (git rev-parse --show-toplevel 2>&1).ToString().Trim()
 $gitignorePath = Join-Path $gitRoot ".gitignore"
 $logDirBase = ($LogDir -split '[/\\]')[0]
 $logPattern = "/$logDirBase/"
+$needsGitignoreCommit = $false
 $needsAdd = $true
 if (Test-Path $gitignorePath) {
     $lines = Get-Content $gitignorePath
@@ -63,9 +64,25 @@ if (Test-Path $gitignorePath) {
 }
 if ($needsAdd) {
     Add-Content -Path $gitignorePath -Value "`n$logPattern"
+    $needsGitignoreCommit = $true
+}
+# Ensure 'nul' is in .gitignore (Windows commands like `ls 2>nul` can create a real 'nul' file in some shells)
+$nulPattern = "nul"
+$nulNeedsAdd = $true
+if (Test-Path $gitignorePath) {
+    $lines = Get-Content $gitignorePath
+    if ($lines | Where-Object { $_ -match "^nul$" }) {
+        $nulNeedsAdd = $false
+    }
+}
+if ($nulNeedsAdd) {
+    Add-Content -Path $gitignorePath -Value "`n$nulPattern"
+    $needsGitignoreCommit = $true
+}
+if ($needsGitignoreCommit) {
     Push-Location $gitRoot
     git add .gitignore
-    git commit -m "chore: add $logDirBase to .gitignore"
+    git commit -m "chore: update .gitignore"
     Pop-Location
 }
 
