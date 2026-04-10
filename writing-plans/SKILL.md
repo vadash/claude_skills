@@ -7,135 +7,71 @@ argument-hint: [design-doc-path]
 
 # Writing Plans
 
-Read the design document and produce a detailed, sequential implementation plan using TDD red-green methodology.
+Convert a design document into a sequential implementation plan using the TDD red-green methodology. 
 
-Write the plan assuming the implementer has zero context about the codebase or problem domain. Document everything: which files to touch, complete code, exact test commands, expected output.
+Your goal as the Planner is to map the design to specific file paths and outline the tasks, **without writing the actual implementation code**.
 
-Do not read existing plans, it waste tokens.
+## Context Gathering Strategy (Efficient Exploration)
+To avoid rate limits and token bloat, you must map the codebase efficiently. Adhere strictly to your global `CLAUDE.md` tool routing rules:
+1. **Source Code:** Use `jCodemunch-MCP` tools. 
+   - **Do NOT** use `get_file_content` to read full implementations unless a critical architectural ambiguity blocks the plan.
+   - Rely almost entirely on `search_symbols`, `get_file_tree`, and `get_file_outline` to verify where new code belongs and where existing code lives. 1-4 targeted calls should be enough.
+2. **Test Conventions:** Use native `Glob` to find, and `Read` to consume, the test directory's `CLAUDE.md` (e.g., `test/CLAUDE.md` or `tests/CLAUDE.md`). This ensures the downstream execution agents follow the right testing patterns.
 
-<HARD-GATE>
-Do NOT write implementation code. Your ONLY output is a plan document. Stop after the plan is committed and the user approves it.
-</HARD-GATE>
+## Execution Model Context
+The generated plan will be executed chunk-by-chunk by separate, **zero-context execution agents**. 
+A script will feed the agent: `[Plan Header] + [Task X]`. 
+Therefore, every Task must contain the exact file paths and specific instructions on *what* to build, so the execution agent doesn't have to guess.
 
-## Input
+## The Workflow
+Copy this checklist into your internal scratchpad to track your progress:
+- [ ] 1. **Read Inputs:** Read the design document provided in `$ARGUMENTS`.
+- [ ] 2. **Read Test Rules:** Glob for and Read the testing `CLAUDE.md` to understand testing conventions.
+- [ ] 3. **Efficient Mapping:** Use `jCodemunch` outline/symbol tools to map design concepts to exact file paths.
+- [ ] 4. **Draft Plan:** Break the work into sequential Tasks (Task 1, Task 2...) using the format below.
+- [ ] 5. **Review & Commit:** Ask the user for review, then commit the plan.
 
-Read the design document at the path provided in `$ARGUMENTS`.
-
-If the design covers multiple independent subsystems, suggest breaking it into separate plans — one per subsystem.
-
-## Task Numbering Rule
-
-Number tasks sequentially: **1, 2, 3, 4, 5, ...**
-
-Do NOT use hierarchical numbering such as 1.1, 1.2, 2.1, 2.2. Every task is a top-level number.
-
-## File Structure
-
-Before defining tasks, map out which files will be created or modified:
-- Each file should have one clear responsibility
-- Prefer smaller, focused files over large ones
-- In existing codebases, follow established patterns
-
-**File Structure Overview:**
-- Create: `path/to/new/file.js` - brief description
-- Modify: `path/to/existing.js` - brief description
-
-## Plan Format
+## Output Format Template
 
 Save to `docs/plans/YYYY-MM-DD-<feature-name>.md`:
 
-````markdown
+```markdown
 # [Feature Name] Implementation Plan
 
-**Goal:** [One sentence]
-**Architecture:** [2-3 sentences]
-**Tech Stack:** [Key technologies]
+**Goal:** [One sentence summarizing the design doc]
+**Testing Conventions:** [1-2 sentences summarizing rules found in the test CLAUDE.md]
 
 ---
 
-### Task 1: [Component Name]
+### Task 1: [Component / Feature Name]
 
-**Files:**
-- Create: `exact/path/to/file.py`
-- Modify: `exact/path/to/existing.py`
-- Test: `tests/exact/path/to/test.py`
+**Objective:** [1-2 sentences explaining what this task achieves]
 
-- [ ] Step 1: Write the failing test
+**Files to modify/create:**
+- Create: `src/exact/path/to/new_file.ts` (Purpose: [Brief description])
+- Modify: `src/exact/path/to/existing.ts` (Purpose: [Brief description])
+- Test: `src/exact/path/to/new_file.test.ts` 
 
-```python
-def test_specific_behavior():
-    result = function(input)
-    assert result == expected
-```
+**Instructions for Execution Agent:**
+1. **Context Setup:** Read the outlines of the files listed above to orient yourself.
+2. **Write Failing Test:** In the test file, write tests that verify `[Specific behavior/edge cases expected]`. Run the test to ensure it fails.
+3. **Implement Minimal Code:** Modify the target files to satisfy the tests. Focus on `[specific function/class names identified during planning]`.
+4. **Verify:** Run the tests and ensure they pass.
+5. **Commit:** Commit with message: `feat: [descriptive message]`
 
-- [ ] Step 2: Run test to verify it fails
-
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: FAIL with "function not defined"
-
-- [ ] Step 3: Write minimal implementation
-
-```python
-def function(input):
-    return expected
-```
-
-- [ ] Step 4: Run test to verify it passes
-
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: PASS
-
-- [ ] Step 5: Commit
-
-```bash
-git add -A && git commit -m "feat: add specific feature"
-```
+---
 
 ### Task 2: [Next Component]
-...
-````
-
-## Task Granularity
-
-Each step is one action (2-5 minutes):
-- "Write the failing test" — one step
-- "Run it to verify it fails" — one step
-- "Write minimal implementation" — one step
-- "Run tests to verify they pass" — one step
-- "Commit" — one step
-
-Every task follows the TDD red-green cycle: start with a failing test, then write the minimal code to make it pass.
-
-## Plan Requirements
-
-- Exact file paths in every task
-- Complete code in the plan — never "add validation here"
-- Exact commands with expected output
-- DRY, YAGNI, frequent commits
-
-## Common Pitfalls (Optional)
-
-For complex tasks, add a pitfalls section after **Purpose**:
-
-```markdown
-**Common Pitfalls:**
-- Don't forget to import `defaultSettings` from `src/constants.js`
-- Mock `confirm()` in tests - it blocks execution
-- Remember to await async functions in tests
+[Repeat the structure above...]
 ```
 
-## User Review
+## Task Design Rules
+1. **Numbering:** Use flat, sequential numbering: **Task 1, Task 2, Task 3...** No hierarchical numbers.
+2. **No Code in Plan:** Do NOT write actual code (not even test code) in the plan document. Provide exact file paths, target symbol names, and describe the *logic* to the execution agent.
+3. **Independence:** Tasks should be logically separate. If Task 2 depends on Task 1, state that clearly in the Objective.
 
-After writing the plan, ask the user to review:
+## User Review & Commit
+After generating the markdown file, ask:
+> "Plan written to `<path>`. I have mapped the exact file paths using efficient outline exploration. Please review and let me know if you want changes."
 
-> "Plan written to `<path>`. Please review and let me know if you want changes."
-
-Revise as needed until the user approves.
-
-## Commit
-
-When the user approves, commit:
-1. The plan file
-2. The design document — if it was not already committed
-
-**Stop after committing.** Do not write implementation code. The user will invoke `/executing-plans` manually after running `/clear`.
+Once the user approves, commit the plan and the design document. **Stop after committing.** Do not execute the plan.
