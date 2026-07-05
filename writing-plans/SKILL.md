@@ -11,8 +11,12 @@ Convert a design document into a sequential implementation plan using the TDD re
 
 Your goal as the Planner is to map the design to specific file paths and outline the tasks, **without writing the actual implementation code**.
 
-## Test Convention
-Use native `Glob` to find, and `Read` to consume, the test directory's `CLAUDE.md` (e.g., `test/CLAUDE.md` or `tests/CLAUDE.md`). This ensures the downstream execution agents follow the right testing patterns.
+## Context Gathering Strategy (Efficient Exploration)
+To avoid rate limits and token bloat, you must map the codebase efficiently. Adhere strictly to your global `CLAUDE.md` tool routing rules:
+1. **Source Code:** Use `jCodemunch-MCP` tools. 
+   - **Do NOT** use `get_file_content` to read full implementations unless a critical architectural ambiguity blocks the plan.
+   - Rely almost entirely on `search_symbols`, `get_file_tree`, and `get_file_outline` to verify where new code belongs and where existing code lives. 1-4 targeted calls should be enough.
+2. **Test Conventions:** Use native `Glob` to find, and `Read` to consume, the test directory's `CLAUDE.md` (e.g., `test/CLAUDE.md` or `tests/CLAUDE.md`). This ensures the downstream execution agents follow the right testing patterns.
 
 ## Execution Model Context
 The generated plan will be executed chunk-by-chunk by separate, **zero-context execution agents**. 
