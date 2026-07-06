@@ -1,17 +1,27 @@
 ---
 name: agents-md-sync
-description: Sync session learnings into the repo's AGENTS.md files at the end of a coding session — add new gotchas, remove obsolete lines, and keep the docs lean. Use this skill whenever the user signals a wrap-up ("wrap up", "session done", "before we finish", "let's call it", "update the docs", "before committing/pushing", "anything to update?", "what did we learn"), or any time the user asks to capture what was learned, prune stale guidance, or update AGENTS.md / project memory. Also use proactively at the end of long sessions even if the user hasn't asked.
+description: Sync session learnings into the repo's AGENTS.md files at the very end of a coding session — add new gotchas, remove obsolete lines, and keep the docs lean. Use this skill ONLY at the moment a commit is about to happen (after all implementation work for the session is finished), or when the user explicitly asks to wrap up the session. Timing matters: this skill runs in the same breath as `git commit`, never earlier. If the user mentions this skill by name inside a longer multi-step instruction (e.g., "implement X, agents-md-sync, then commit"), treat the mention as a scheduling instruction, NOT as a trigger — finish the implementation work first, then invoke this skill only when you are about to run the commit. Do NOT trigger just because the user said "commit", "agents-md-sync", "update docs", or named this skill mid-task; those words in isolation are not the signal. The signal is: implementation is done AND a commit/finish is imminent. Trigger examples: "ready to commit, do the agents-md sync first", "wrap up the session", "before we commit, anything to update?", "session done, sync docs".
 ---
 
 # AGENTS.md Sync
 
-You are at the end of a coding session. Your job is to decide what the agent (you, in future sessions) genuinely needs to know that isn't already in the code, the linter, or git — and to persist *only that* into the repo's `AGENTS.md` files.
+You are at the end of a coding session, about to commit or wrap up. Your job is to decide what the agent (you, in future sessions) genuinely needs to know that isn't already in the code, the linter, or git — and to persist *only that* into the repo's `AGENTS.md` files.
 
 ## Why this matters
 
 `AGENTS.md` goes into **every single future session**. It's the highest-leverage file in the repo: a bad line there doesn't break one feature, it subtly degrades every future task. Research on frontier LLMs shows instruction-following decays uniformly as instruction count grows — frontier thinking models reliably follow ~150-200 instructions total, and Claude Code's system prompt already consumes ~50 of those. So every line you add must earn its place, and every stale line you leave actively harms future work.
 
 The reverse is also true: a gotcha you discovered this session (a hidden invariant, a workaround for a specific bug, a non-obvious dependency rule) is *priceless* if it saves the next session from rediscovering it the hard way. This skill exists to capture that kind of learning — and to delete the cruft that has accumulated.
+
+## Timing: defer if the session isn't actually ending
+
+This skill edits `AGENTS.md` based on what was learned across the whole session. If you run it before the implementation work is finished, you'll capture half a session's learnings and may also disrupt the user's flow. So:
+
+- **If you were named inside a longer task** — e.g. the user said "implement X, then agents-md-sync, then commit" — do not run this skill yet. Complete the implementation work first. Come back and invoke this skill only when you are about to run `git commit` (or the user has explicitly said the session is ending).
+- **If the user has merely said the word "commit" or "docs" mid-task** without indicating the session is ending, that's not a trigger. Keep working.
+- **The right moment** is: implementation is complete AND you are within one step of running `git commit` or ending the session.
+
+When you do run, do it as a discrete step *before* staging the commit, so the AGENTS.md edits can be included in that same commit if appropriate.
 
 ## The filter: should this be persisted?
 
