@@ -1,7 +1,5 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(pwsh:*)"
-    ]
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true
   }
 }

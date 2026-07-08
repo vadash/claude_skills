@@ -2,3 +2,4 @@
 *.stackdump
 /auto-execute/repomix*
 /auto-execute/.jcodemunch.jsonc
+/.claude/
