@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Create a structured session handoff when context is running low or work is pausing. Deep context mining, self-validation, multi-file splitting. Captures everything the next session needs.
+description: Create one compact, validated session handoff for a Beads-tracked workstream when context is running low or work is pausing. Captures current deltas, verified state, and the next action without duplicating durable project documentation.
 user_invocable: true
 triggers:
   - do a handoff
@@ -15,210 +15,155 @@ argument-hint: [optional reason, e.g. "context low", "end of day"]
 
 # Session Handoff
 
-**Guards:**
-- **Not plan mode.** This skill writes files. If in Claude Code plan mode, exit first.
-- **Not shadowing.** NEVER generate handoff-like documents freeform. Freeform summaries look right but lack chain tracking, self-validation, and evidence mining. Only this skill produces handoffs.
-- **Not when discussing.** Only run when the user explicitly asks to CREATE a handoff right now. If ambiguous ("what does handoff do", "edit the handoff file"), ask first.
-
-Typical use: ~75% context. You have a lot of conversation to mine — extract maximum value before closing. On 1M context that's ~750K tokens of history.
-
-The user should not need to provide anything — `/handoff` alone is sufficient.
+Create one compact, evidence-backed delta handoff for a Beads-tracked workstream.
+The next session should be able to resume without re-reading the whole project or
+mistaking duplicated handoff text for an authoritative source.
 
 **Arguments:** $ARGUMENTS
 
----
+## Guards
 
-## Agent Strategy
+- Run only when the user explicitly asks to create or update a handoff now.
+- Require an active Beads workspace. If `bd` is unavailable or `bd where` cannot
+  resolve the repository, stop and explain that this skill supports Beads-backed
+  repositories only.
+- Read applicable repository and user policy before any write or state mutation.
+- Treat the handoff request as authority to write the handoff and update its
+  active Beads issue notes. Do not infer authority to commit, push, sync, deploy,
+  archive, close issues, or move files.
+- Create exactly one handoff file. Never split it by size.
 
-Parallelize independent research. Launch in one message.
+## Step 1: Policy and Beads Preflight
 
-| What | Mode | Why |
-|---|---|---|
-| Step 1A (git/beads/ls) | **Parallel Bash, never agents** | Cheap commands; agent bootup wastes 15K+ each |
-| Step 1B context agents (OV, stale-refs, bible) | Parallel Bash inline; agents only if parent handoff >500 lines | Independent research |
-| Step 1C (conversation mining) | Main agent only | Only you have the history |
-| Steps 5+6 (beads/memory writes) | Parallel Bash | Independent writes |
+Before gathering or writing:
 
----
+1. Read the active repository instruction files and current user/system
+   instructions.
+2. Identify ownership boundaries for task state, durable documentation,
+   generated artifacts, secrets, commits, and session closure.
+3. Run `bd prime`, then confirm the workspace with `bd where` if needed.
+4. Inspect in-progress work with `bd list --status=in_progress` and read every
+   candidate issue with `bd show <id>`.
+5. If no issue represents the active work, create and claim one before writing
+   the handoff. Do not invent a standalone/non-Beads chain.
 
-## Step 1: Deep Context Gathering
+Repository instructions and durable project documentation are inputs to the
+handoff process, not handoff content. Do not include links to `AGENTS.md`, any
+variant of `AGENT.md`, or files under `agent_docs/` in the generated handoff.
+Do not copy their stable rules into the handoff. Record only a policy change or
+conflict that directly affects resumption.
 
-### 1A: External State (parallel Bash — never agents)
+## Step 2: Gather Current State
 
-Run in one message as inline Bash calls:
+Use the tools and shell available in the environment. Do not assume Bash,
+PowerShell, a particular agent product, or named editing tools. Prefer parallel
+read-only calls when supported.
 
-| Commands | Returns |
-|---|---|
-| `git log --oneline -20`, `git diff --stat`, `git status -s \| head -30`, `git branch --show-current` | Branch, recent commits, uncommitted changes |
-| `bd list --status=in_progress`, `bd list --status=open --priority=0,1`, `bd stats` (skip if bd unavailable) | Active/open beads |
-| `ls plans/handoffs/`, `ls .claude/handoffs/`, `ls plans/*.md` | Existing handoff files |
+Gather:
 
-### 1B: Chain Detection
+- Git branch, HEAD, recent commits, staged/unstaged/untracked state, and diff
+  summary when the workspace uses Git.
+- Active Beads issue details, dependencies, blockers, acceptance criteria, and
+  current status.
+- Existing handoffs under the configured handoff directory, including archived
+  subdirectories.
+- Files actually changed, tests actually run, measurements actually observed,
+  and unresolved failures from this session.
+- User directions that were introduced, changed, or revoked this session.
 
-**Resolve the chain tag** (use first that applies):
-1. Epic exists → use epic name/ID
-2. 1-4 beads → use all bead IDs (e.g., `myproject-xxxx, myproject-yyyy`)
-3. 5+ beads → pick 2-3 most relevant to the primary work stream
-4. No beads/epic → generate fallback: `python -c "import secrets; print(secrets.token_hex(4))"` → `standalone-{hex}`
+Never paste secrets, ignored configuration contents, deployment credentials,
+real infrastructure identifiers, or unfiltered command output into a handoff.
 
-**Find prior handoff in this chain** (two tiers, stop at first match):
+## Step 3: Resolve the Chain
 
-- **Tier A — Paste Prompt (deterministic).** Did the user start this session by pasting something like `Read HANDOFF_foo_date.md (seq 2, chain-x) and continue...`? If yes, that file is the parent. Read its header. Continuation — seq = parent's + 1.
+Determine the parent in this order:
 
-- **Tier B — Bead/Epic Scan (heuristic, skips auto-handoffs).**
-  ```bash
-  grep -l "Chain:.*{chain_tag}" plans/handoffs/HANDOFF_*.md 2>/dev/null \
-    | xargs grep -L "^\*\*Auto:\*\* true" 2>/dev/null
-  ```
+1. An explicit handoff path supplied by the user or session-opening prompt.
+2. The latest handoff whose Beads chain and planned next action directly match
+   the active work.
+3. No parent when this is a genuinely new Beads workstream.
 
-  **A shared bead is a CANDIDATE, not proof of continuation.** Before claiming the match as parent:
-  1. Read the candidate's `## Where We're Going` section.
-  2. Is current session work a direct follow-on of those steps? (Same feature/fix, continuing the named next-actions?)
-  3. **Clear continuation** → inherit chain, increment seq, set parent.
-  4. **Unclear or unrelated** → treat this as seq 1 (new chain). Add a `## Related Handoffs` section listing the sibling file as reference only, NOT parent. A bead can host many independent work streams (brainstorm → impl → testing) — don't conflate them.
-  5. **Any doubt** → ask the user: "Found prior handoff `{file}` on same bead. Is this session a continuation? (default: new chain)"
+Read the full parent when one exists. A shared bead or epic is only a candidate;
+the current work must be a direct continuation of its next action.
 
-**Neither tier matches:** seq 1, parent: none.
+Use the parent chain tag for a continuation. For a new chain, use the active
+epic ID when one exists; otherwise use the primary Beads issue ID. Set sequence
+to the parent sequence plus one, or one for a new chain. Store the exact parent
+path; do not emit a growing ancestor breadcrumb.
 
-### 1B-3/4: Context Agents (parallel, inline Bash unless parent is huge)
+## Step 4: Mine Session Deltas
 
-Once chain tag resolved, launch in parallel:
+The conversation is the source for intent and chronology; the filesystem, Git,
+test output, and Beads are the source for current facts.
 
-| Task | Returns |
-|---|---|
-| OV Recall (if available): `/memory-recall` with 2-3 keyword searches | Prior decisions, failed approaches |
-| Parent Context (if parent exists): **READ FULL PARENT** — extract Goal, Where We Are, Key Decisions, What We Tried, Where We're Going, Open Questions, code identifiers | Parent summary for "Since Last Handoff" + identifier list |
-| Reference Docs: `ls plans/*BIBLE* plans/*bible* *BIBLE* CLAUDE.md .claude/CLAUDE.md` and read if found | Project context |
-| Stale Refs (if parent): Grep each parent identifier against current codebase | List of identifiers NOT found |
+For a short or focused session, make one structured pass. For a long,
+multi-topic, or tool-heavy session, read `references/mining-deep-chunked.md` and
+use its multi-pass procedure.
 
-**Parent reading is MANDATORY when a parent exists.** "Since Last Handoff" requires comparing what was planned vs what happened. Skip agents that don't apply.
+Extract only information that helps resume this work:
 
-### 1C: Conversation Mining
+- What changed since the parent or since the session began.
+- Non-obvious decisions and rejected alternatives.
+- Expensive failed approaches and why they failed.
+- Current worktree state and incomplete edits.
+- Verification performed this session, emphasizing failures, changed results,
+  acceptance-relevant gates, and measurements that affected a decision.
+- New or changed user direction.
+- Current risks, blockers, and unanswered questions.
+- The single next action and a small number of ordered follow-ons.
 
-If arguments were provided ($ARGUMENTS), use as a soft hint for framing. Conversation is ground truth.
+Do not repeat stable architecture, product scope, operating procedures, old
+user preferences, complete task history, or evidence already owned by durable
+project documentation or Beads. Link task-specific raw evidence only when the
+next session needs it.
 
-**Choose mining pass and announce it** (this is not optional):
+## Step 5: Write One Handoff
 
-| Pass | When | Strategy |
-|---|---|---|
-| **Quick** | <100K context tokens | Single pass with extraction checklist below |
-| **Deep** | 100K-500K context tokens, OR 1M context + 20+ tool calls | Two passes — **read `references/mining-deep-chunked.md`** |
-| **Chunked** | 500K+ context tokens, OR 1M context + 50+ tool calls or >1hr work | Map-reduce — **read `references/mining-deep-chunked.md`** |
+Choose the first existing handoff directory, creating `plans/handoffs/` only
+when no configured location exists:
 
-**Write: "Mining with {Quick/Deep/Chunked} pass ({reason})."** before starting. Don't use numeric names — they collide with chain seq numbers.
-
-For Deep or Chunked, read `references/mining-deep-chunked.md` NOW for the multi-pass protocol. Don't do map-reduce from memory.
-
-**Extraction checklist** (apply per pass):
-
-- [ ] Goals & objectives (user's target, overarching epic)
-- [ ] Work completed (every file modified, function changed, with specifics)
-- [ ] Approaches tried (chronological, successful and failed)
-- [ ] Failed approaches + why (MOST expensive to re-discover)
-- [ ] Test results & measurements (raw numbers)
-- [ ] Data files created (paths to JSON/CSV/logs)
-- [ ] Decisions made + rejected alternatives
-- [ ] Discoveries & gotchas
-- [ ] Code analysis (signatures, thresholds, constants)
-- [ ] User preferences expressed
-- [ ] Remaining questions
-- [ ] Dependencies on other work
-
-If you're skimming, STOP. Re-read. Details are the value.
-
----
-
-## Step 2: Choose Output Location
-
-First directory that exists (or create `plans/handoffs/`):
 1. `plans/handoffs/`
 2. `.claude/handoffs/`
 
-## Step 3: Generate File Name
+Name the file:
 
-- **With beads:** `HANDOFF_{chain_tag}_{slug}_{YYYY-MM-DD}.md` (e.g., `HANDOFF_myproject-xxxx_auth-rewrite_2026-03-19.md`). For multi-bead, use primary bead only.
-- **No beads:** `HANDOFF_{slug}_{YYYY-MM-DD}.md`
-- Slug: 2-4 word kebab-case.
-- Collision: append `_2`, `_3`, etc.
+`HANDOFF_{chain_tag}_{2-4-word-slug}_{YYYY-MM-DD}.md`
 
-## Step 4: Write the Handoff File
+Append `_2`, `_3`, and so on only on collision.
 
-**Read `references/output-template.md`** for the full file structure. It defines every section (Goal, Where We Are, What We Tried, Evidence & Data, etc.) with composition rules.
+Read `references/output-template.md` and follow its compact section structure.
+Write the complete handoff in one file. Add an appendix inside that file only
+when raw chronology or evidence is genuinely necessary for resumption.
 
-### Line Budget
+After the initial write, read the file back and remove duplication. Expand only
+when a concrete resumption fact is missing; never expand to meet a length target.
 
-Check your system prompt for context window size.
+## Step 6: Validate Information Quality
 
-| | Standard (200K) | Extended (1M) |
-|---|---|---|
-| Target (aim for ceiling) | 300-400 lines | 500-800 lines |
-| Hard minimum | 150 lines | 250 lines |
-| Light session min | 80 lines | 120 lines |
-| Split threshold | 400 lines | 800 lines |
+Read `references/validation.md` and run every applicable check. Validate claims
+against current Git, Beads, files, and observed command results. Fix stale,
+duplicated, unsupported, or policy-conflicting content before continuing.
 
-**Target the CEILING.** An 800-line handoff on 1M context is ~0.7% of the window — negligible cost, huge savings. Too-long is cheap; too-short costs hours of re-investigation.
+## Step 7: Update Beads
 
-### Two-Phase Write
+Update the active issue notes with only the handoff path, chain sequence,
+session outcome, and next action. Do not duplicate the handoff body in Beads.
+Do not close the issue unless its actual acceptance criteria are complete and
+repository policy permits closure.
 
-1. **Phase 1 — Initial Write.** Compose and write everything in ONE Write call. All sections.
-   **Phase 1 MUST hit the pass minimum on its own** — Quick: 150+ standard / 250+ extended, Deep: 300+, Chunked: 500+. Phase 1 is not a rough draft; it's the baseline. If you find yourself planning to "flesh it out in Phase 2," stop and expand the current sections before writing.
-2. **Phase 2 — Gap Research.** After writing, count lines. Read your file back. Scan conversation for data you didn't capture (tables skipped, mid-session feedback missed, measurements without numbers, approaches mentioned but not detailed). Use Edit to append toward the ceiling.
-   **Phase 2 is for gaps, not for baseline.** If Phase 2 needs to add 50+ lines to reach the minimum, Phase 1 was under-mined.
+Use `bd remember` only when repository policy uses Beads memories for handoff
+discovery. Store a compact pointer, not another summary.
 
-**Phase 2 is MANDATORY for Deep and Chunked passes.** Optional for Quick — but run it if your first pass is below the ceiling by >20%.
+## Step 8: Report
 
-**Splitting:** only if final file exceeds threshold. Under threshold = one file.
+Tell the user:
 
----
+- The handoff path.
+- Chain tag and sequence.
+- Active Beads issue(s).
+- Whether validation passed.
+- The exact next action.
+- Any uncommitted state or action requiring separate authorization.
 
-## Step 4-CHECK: Self-Validation
-
-**Read `references/validation.md`** and run every check. If any fails, expand thin sections before proceeding.
-
----
-
-## Steps 5 + 6: Update Beads & Persist Memory (parallel Bash)
-
-```bash
-# Beads (if in_progress work exists)
-bd update {id} --notes "Handoff written. See {file_path}"
-
-# Memory (if bd remember available)
-bd remember "Handoff: {path}. Chain: {chain_tag} seq {N}. Status: {status}. Next: {next action}"
-```
-
-## Step 7: Report
-
-Tell the user concisely:
-- File path(s) and line count(s)
-- Chain info (tag, seq, new vs continuation)
-- Self-check outcome (and what was expanded if first pass failed)
-- The Next Action
-
-## Step 8: Ask to Close Session
-
-Ask:
-
-> **Handoff complete.** Ready to close this session?
->
-> - **Yes** — I'll commit, mark "session closed", give you a paste prompt for the next session.
-> - **No** — We keep working. Say "close session" when done.
->
-> *(Defaults to commit — say "close without commit" to skip.)*
-
-Based on the answer, **read `references/close-session.md`** and follow the flow for Yes / No / "close without commit".
-
----
-
-## Cleanup: Archiving Completed Chains
-
-When bead/epic is closed and all work is done:
-
-```bash
-# Find all handoffs for a bead or epic
-grep -l 'Chain:.*{bead_id_or_epic}' plans/handoffs/HANDOFF_*.md plans/handoffs/PLAN_*.md 2>/dev/null
-
-# Archive (don't delete — old decisions are useful)
-mkdir -p plans/handoffs/archive/
-mv {files} plans/handoffs/archive/
-```
+If the user asks to close the session, read `references/close-session.md`.
+Never default to committing or archiving.

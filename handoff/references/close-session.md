@@ -1,74 +1,59 @@
 # Close Session Flow
 
-Used by Step 8 of the handoff skill, after the user answers Yes / No / "close without commit".
+Use only after the handoff has been written and the user asks to close or wrap
+up the session.
 
-## If the user says YES (or "yes"):
+## 1. Re-check Policy and Authority
 
-### 1. Commit all session work (default — don't ask again)
+Read current repository and user instructions again. A handoff request or a
+request to close the session does not automatically authorize a commit, push,
+Beads remote sync, archive, issue closure, or deployment.
 
-```bash
-git status -s
-git diff --stat
+Inspect current Git and Beads state with the available shell and tools. Do not
+assume a particular operating system or shell.
+
+## 2. Close Beads Work Only When Complete
+
+Close an issue only when its acceptance criteria are actually satisfied and
+current policy permits closure. Otherwise leave it open or in progress and
+ensure its notes point to the handoff.
+
+## 3. Commit Only With Authority
+
+If commit authority is explicit:
+
+1. Review staged, unstaged, untracked, and deleted files.
+2. Stage only files belonging to this session.
+3. Include the handoff in the same commit when policy expects it to be tracked.
+4. Use the repository's commit-message conventions.
+5. Report the resulting commit hash and any remaining dirty files.
+
+Do not append a commit hash to the handoff after committing unless the user also
+authorizes a follow-up commit or amend. Record the hash in Beads notes when a
+durable pointer is needed.
+
+If commit authority is absent, do not commit. Report the exact dirty state and
+the proposed next command or ask for authorization when the user wants a commit.
+
+Never add product-specific AI attribution or co-author trailers unless current
+repository policy explicitly requires them.
+
+## 4. Do Not Archive Automatically
+
+Do not move, rename, delete, or archive handoffs during ordinary session
+closure. Archival is separate repository maintenance and requires explicit
+authority plus reference validation.
+
+## 5. Produce the Resume Prompt
+
+Provide a concise prompt using the active Beads issue and handoff path:
+
+```text
+Read `{handoff_path}` (chain `{chain_tag}` seq `{N}`), then run
+`bd show {primary_issue}` and continue from “Next Action”. Verify the recorded
+Git/worktree state before editing and report any drift.
 ```
 
-If uncommitted changes exist, stage all changed/new files relevant to this session's work, then commit:
-
-```
-session: {slug} [{chain_tag}]
-
-{One-line summary of what this session accomplished}
-
-Handoff: {handoff_filename}
-Bead(s): {bead_ids or "none"}
-
-Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-Show the user the file list + commit hash.
-
-**Be surgical:** only commit files related to this session's work. If `git status` shows unrelated changes from other sessions, mention them but don't commit. When in doubt, list the files and ask.
-
-If working tree is clean: "Working tree clean — nothing to commit."
-
-### 2. Append to the handoff file
-
-```
-## Session Closed
-**Closed at:** {timestamp}
-**Commit:** {short hash}
-**Session status:** Handed off to next session
-```
-
-### 3. Output the paste prompt
-
-```
--------------------------------------------------------
-PASTE THIS INTO YOUR NEXT SESSION:
--------------------------------------------------------
-Read `{path to file}` (seq {N}, {chain_tag}) and continue from "Where We're Going". Check `bd list --status=in_progress` for active work.
-
-Before starting work, narrate your onboarding:
-1. Read the handoff file and summarize what you understand (goal, current state, what was tried)
-2. Show which bead(s) you're claiming and what phase/step you're starting
-3. State what you'll verify first (run tests, check baselines, read key files)
-4. Read the listed key files, then explore 2-3 adjacent files (configs, shared utils, related modules) not listed — the handoff captures what the previous session focused on, not everything that matters
-5. Explain your planned first action and why
-Then wait for my go-ahead before executing.
--------------------------------------------------------
-```
-
-### 4. Tell the user
-
-"Session is closed. Paste the prompt above into a fresh session to continue."
-
-## If the user says "close without commit":
-
-Do steps 2-4 above, skip the commit. Warn: "Changes are uncommitted — next session or other sessions may see dirty state."
-
-## If the user says NO:
-
-1. Tell the user: "Handoff saved. When you're ready to close, say 'close session' or run `/handoff` again."
-2. Continue the conversation normally.
-3. On any subsequent `/handoff` or "close session" or "done" or "wrap up", repeat this close flow.
+Do not include links to general repository instruction files or durable project
+documentation. The next session must discover and obey repository policy through
+its normal startup process.

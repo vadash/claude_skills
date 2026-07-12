@@ -1,161 +1,97 @@
 # Handoff Output Template
 
-Structure for the handoff file. Follow exactly — the next session relies on these section names.
+Use this compact structure. Capture deltas and resumption facts, not a second
+copy of the project's durable documentation.
 
 ```markdown
-# {One-line summary of current work}
+# {One-line session outcome and immediate continuation}
 
 **Date:** {YYYY-MM-DD}
-**Status:** {COMPLETED | IN PROGRESS | BLOCKED}
-**Bead(s):** {active bead IDs, or "none"}
-**Epic:** {parent epic/initiative name, if any}
+**Session outcome:** {completed | paused | blocked}
+**Bead(s):** {active Beads issue IDs}
+**Epic:** {epic ID, or none}
 **Chain:** `{chain_tag}` seq `{N}`
-**Parent:** `{parent_filename}` or `none — first in chain`
-**Prior chain:** `{file1}` > `{file2}` > ... > this  (or "none — first in chain")
-
-{chain_tag examples:
-  - Epic:    `authentication-overhaul`
-  - Beads:   `myproject-xxxx`
-  - Multi:   `myproject-xxxx, myproject-yyyy`
-  - No bead: `standalone-a1b2c3d4`}
+**Parent:** `{exact relative path}` or `none — new Beads workstream`
+**Git:** `{branch}` at `{short HEAD}`; {clean or concise dirty-state summary}
 
 ---
 
-## Stale References
+## Resume at a Glance
 
-{INCLUDE ONLY if parent existed and some identifiers from parent aren't in current codebase.
-Format:
-- `old_identifier` — not found in codebase (was in parent seq N)
-- `another_name` — not found in codebase
+{A short paragraph or 3-6 bullets covering:
+- the user-visible goal of this workstream;
+- the current working state;
+- what is complete versus incomplete;
+- the single action the next session should perform first.}
 
-These may have been renamed/removed since parent. Don't guess; flag only. Next session resolves by reading code.
-If all identifiers check out, OMIT entirely.}
+## Changes This Session
 
-## Related Handoffs
+{Only deltas introduced during this session. Group when useful:
 
-{INCLUDE ONLY if Step 1B found sibling handoffs on the same bead that AREN'T chain parents (different work streams).
-Format:
-- `HANDOFF_bead-xxx_other-topic_date.md` — {1-line topic}, separate work stream
-Tells the next session these exist without treating them as continuation context.
-OMIT if none.}
+### Behavior and implementation
+- `path` / `identifier` — what changed and why.
 
-## Since Last Handoff
+### Task state
+- Bead status, dependency, blocker, or acceptance change.
 
-{INCLUDE ONLY if parent exists (seq > 1). Compare parent's plan vs reality:
-- Parent's "Where We're Going" vs what actually happened
-- Which open questions got answered
-- Which risks materialized
-- Trajectory: still on path, or priorities shifted?
-3-8 bullets. Momentum, not snapshot.
-If seq 1, OMIT entirely.}
+Do not restate stable architecture, repository rules, or historical scope.}
 
-## Reference Documents
+## Decisions and Failed Approaches
 
-{INCLUDE ONLY if project bibles/architecture docs exist:
-- `plans/MY_PROJECT_BIBLE.md` — master reference for {domain}
-- `CLAUDE.md` — project conventions
-OMIT if none.}
+{Include only non-obvious decisions, rejected alternatives, and failures that
+would otherwise be expensive to rediscover. For each, state the reason or
+observed failure. Omit routine file reading, formatting, import fixes, and
+ordinary edit/test cycles. Write `None` when there were no material decisions
+or failed approaches.}
 
-## The Goal
+## Verification
 
-{3-5 sentences. Overarching objective, why it matters, user's end state.
-If a project bible exists, frame the goal in its context.}
+{Keep this short. Include only:
+- failures or regressions and their final state;
+- new or changed test results relevant to acceptance;
+- measurements that affected a decision;
+- one concise summary line for an otherwise unchanged passing gate suite.
 
-## Where We Are
+Do not enumerate every crate, test count, formatting check, or unchanged gate.
+Use at most one small table when comparison is materially clearer than prose.
+Clearly mark inherited or unverified claims. Link only task-specific raw
+evidence needed for continuation. Do not link `AGENTS.md`, `AGENT.md`, or
+anything under `agent_docs/`.}
 
-{15-25 bullets: every file/function changed, test counts, measurements with real numbers, what works/doesn't.
-Under 10 = too aggressive.}
+## Worktree State
 
-## What We Tried (Chronological)
+{Record:
+- staged changes;
+- unstaged changes;
+- untracked or deleted files;
+- known incomplete/broken edits;
+- whether the handoff itself is committed.
 
-{EVERY approach: hypothesis → changes → result (with numbers) → why it worked/didn't.
-MOST EXPENSIVE to re-discover. 5-15 entries. Include prior session context.}
+For each relevant changed path, give one concise delta. Write `Clean` when the
+worktree is clean.}
 
-## Key Decisions
+## User Direction Delta
 
-{Every non-obvious decision + WHY. Include rejected alternatives. 5-10 bullets.}
+{Only directions introduced, changed, or revoked this session. Do not repeat
+longstanding preferences or repository policy. Write `None` when unchanged.}
 
-## Evidence & Data
+## Risks and Open Questions
 
-{ALL raw data from the session:
-- Comparison tables (approach A vs B vs C with metrics)
-- Cost/budget tracking
-- Iteration histories (v1→v2→v3, what changed, results)
-- Status matrices (N/M complete)
-- Commit logs (hash + summary table for 5+ commits)
-- Benchmark numbers, accuracy %, error rates
-- Data file paths for raw results
+{Combine active blockers, material risks, and unanswered questions. Omit
+resolved or generic risks. Write `None` when there are none.}
 
-Never say "improved" — say "improved from X to Y". Use markdown tables.
-Include small raw data blocks (<20 lines) that ARE primary evidence — ground truth annotations, reference configs, key YAML/JSON. Too expensive to re-derive.
-8-20 items minimum. Chunked pass: expect 3+ tables. If fewer, mine deeper.}
+## Next Action
 
-## Code Analysis
+**First action:** {one concrete action tied to a Beads issue}
 
-{Function signatures, thresholds, constants, architecture, coupling.
-Skip if no deep code reading. 5-10 bullets.}
+{Optionally list 1-4 ordered follow-ons. Include only the minimum commands and
+task-specific files required to resume. Start with `bd show {id}` and claim the
+issue when appropriate. Do not list general repository instruction files or
+durable project documentation.}
 
-## Files Changed
+## Appendix: Detailed Evidence or Chronology
 
-{Grouped by purpose:
-
-### Source code
-- path/to/file.py — what changed and why
-
-### Tests
-- path/to/test.py — what was tested
-
-### Data & results
-- path/to/results.json — what it contains
-
-### Config
-- path/to/config — what changed}
-
-## User Feedback & Preferences (REQUIRED — never omit)
-
-{EVERY piece of direction the user gave. Include:
-- Direct corrections ("drops should only be 2-4 bars")
-- Preferences ("cost doesn't matter", "I don't like post-processing")
-- Frustrations ("the data is shit")
-- Feature requests ("add editing tools to the dashboard")
-- Process feedback ("stop asking, just do it", "launch parallel agents")
-This is the user's VOICE. Calibrates next session's approach.
-5-15 items for heavy sessions.}
-
-## Where We're Going
-
-{Ordered next steps with phase/step numbers. 3-7 bullets.}
-
-## Risks & Blockers
-
-{Upstream deps, flaky areas, env issues. 2-5 bullets. "None" if clear.}
-
-## Open Questions
-
-{Unknowns needing investigation. 1-5 bullets. "None" if answered.}
-
-## Quick Start for Next Session
-
-```bash
-# Restore context
-bd show {bead_id}
-
-# Prior context (if OV available)
-# /memory-recall {topic keywords}
-
-# Reference docs
-{paths to project bibles, if any}
-
-# Key files to read first (not exhaustive — explore adjacent code too)
-{3-5 most important files}
-
-# Evidence / data files
-{paths to test results, measurements}
-
-# Verify current state
-{test command or validation step}
-
-# Next action
-{THE single most important thing to do next}
-```
+{OPTIONAL. Include only when raw measurements, a complex failure timeline, or
+other detailed evidence is necessary to resume. Keep it in this same file.
+Omit the entire section otherwise.}
 ```

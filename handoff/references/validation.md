@@ -1,51 +1,60 @@
-# Handoff Self-Validation Checklist
+# Handoff Information-Quality Validation
 
-Run after Step 4 Write. Do not skip.
+Run every applicable check after writing. There is no line target and handoffs
+must never be split by size.
 
-## 1. Line Count Check
+## 1. Policy and Authorization
 
-Check your system prompt for context window size. Target the CEILING, not the floor.
+- [ ] Applicable repository and user policy was read before any mutation.
+- [ ] The repository has an active Beads workspace.
+- [ ] The handoff performs no unauthorized commit, push, sync, deployment,
+      archival, issue closure, or file move.
+- [ ] The output contains no links to `AGENTS.md`, `AGENT.md`, or `agent_docs/`.
+- [ ] Durable repository rules and documentation were not copied into the
+      handoff unless a policy change directly affects resumption.
 
-| Pass | Minimum | Target ceiling | Must expand if under |
-|---|---:|---:|---:|
-| Quick (Standard/200K) | 150 | 400 | 150 |
-| Quick (Extended/1M) | 250 | 800 | 250 |
-| Deep | 300 | 600 | 300 |
-| Chunked | 500 | 800 | 500 |
+## 2. Beads and Chain Integrity
 
-**Under MUST-expand threshold:** Run Phase 2 (gap research). Read your file back. Scan conversation for uncaptured data. Use Edit to append. Do NOT proceed until above threshold.
+- [ ] Every listed Beads issue exists and its status matches `bd show`.
+- [ ] The primary issue, epic, chain tag, and sequence agree.
+- [ ] The parent is a direct continuation, not merely a shared bead or epic.
+- [ ] The exact parent path exists when a parent is listed.
+- [ ] New workstreams use an epic or Beads issue ID, never a standalone tag.
+- [ ] The next action is consistent with the issue's current acceptance and
+      dependency state.
 
-**Between threshold and ceiling:** Phase 2 still recommended. There's almost certainly data you missed.
+## 3. Delta Quality
 
-Common thin-section culprits:
-- "Where We Are" has <10 bullets
-- "What We Tried" missing or has only 1-2 entries
-- "Evidence & Data" summarizes instead of giving numbers
-- "Key Decisions" has only 1 entry
-- "Code Analysis" is missing when source was read during the session
+- [ ] “Changes This Session” contains only current-session deltas.
+- [ ] Stable architecture, product scope, old preferences, and completed
+      history are not repeated.
+- [ ] Decisions include their reasons; failed approaches include observed
+      failure causes.
+- [ ] Routine mechanics are omitted unless they expose a reusable gotcha.
+- [ ] No fact is repeated across multiple sections without a resumption reason.
 
-## 2. Data Completeness Check
+## 4. Evidence and Current State
 
-- [ ] "Where We Are" includes specific file AND function names
-- [ ] "What We Tried" has one entry per distinct approach discussed
-- [ ] "Evidence & Data" has actual numbers, not summaries ("error rate: 28.6" not "high error")
-- [ ] "Key Decisions" includes at least one rejected alternative
-- [ ] If prior handoffs exist on this topic: clear "what changed since last time"
-- [ ] "Quick Start" has a concrete first action, not "continue working"
-- [ ] Data file paths included so next session can reference raw results
+- [ ] Test and measurement claims were observed this session or clearly marked
+      inherited/unverified.
+- [ ] Verification emphasizes failures, changed results, acceptance evidence,
+      and decision-driving measurements rather than every passing gate.
+- [ ] An unchanged passing gate suite is summarized once; exact detail is kept
+      only where it affects confidence or the next action.
+- [ ] Changed paths and identifiers exist, or deletions/renames are explicit.
+- [ ] Git HEAD, branch, staged, unstaged, and untracked state are accurate.
+- [ ] Incomplete or broken edits are called out explicitly.
+- [ ] The first next action is concrete enough to execute without guessing.
 
-## 3. Chain Check
+## 5. Security and Readability
 
-- [ ] **Chain** line has a valid tag (epic, bead ID(s), or standalone hex)
-- [ ] If continuation: **Parent** file actually exists (ls to verify)
-- [ ] **Prior chain** breadcrumb lists all ancestors in order
-- [ ] If seq 1: Parent = `none — first in chain`
-- [ ] Parent is NOT an auto-handoff (file header doesn't contain `**Auto:** true`)
+- [ ] No secrets, tokens, credentials, private hostnames, deployment IDs, or
+      ignored configuration contents are exposed.
+- [ ] Raw command output is filtered to the facts required for resumption.
+- [ ] The core handoff can be understood without reading an optional appendix.
+- [ ] Any appendix contains necessary raw evidence, not overflow created by an
+      arbitrary size rule.
 
-## 4. Split Check
-
-Over the split threshold (400 standard / 800 extended)? **SPLIT** into part1 + part2 with cross-references.
-
-## 5. If any check fails
-
-Fix before proceeding to Steps 5+. Rewrite thin sections. You have ~25% context remaining — use it.
+If a check fails, fix the handoff and validate again. Expand only to add a
+missing fact; shorten whenever duplication or durable-project restatement is
+found.
