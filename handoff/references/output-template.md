@@ -10,7 +10,6 @@ copy of durable documentation.
 **Session outcome:** {completed | paused | blocked}
 **Bead(s):** {active Beads issue IDs}
 **Epic:** {epic ID, or none}
-**Git:** `{branch}` at `{short HEAD}`; {clean or concise dirty-state summary}
 **Temporary:** Delete after the continuation session no longer needs this checkpoint.
 
 ---
