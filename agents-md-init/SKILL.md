@@ -1,81 +1,85 @@
 ---
 name: agents-md-init
-description: Bootstrap AGENTS.md and agent_docs/ from scratch using chaotic docs and codebase exploration. Manual-only.
+description: Manually bootstrap a repository AGENTS.md and agent_docs hierarchy, or explicitly audit and refactor an existing hierarchy for progressive disclosure. Use only when the user directly requests initialization, a full memory/documentation rewrite, or a structural AGENTS.md optimization; routine end-of-session maintenance belongs to agents-md-sync.
 disable-model-invocation: true
 ---
 
-# AGENTS.md Init
+# AGENTS.md Init and Refactor
 
-You are creating the `AGENTS.md` memory system from scratch for a repo that has none. This is the genesis counterpart to `agents-md-sync`: sync maintains and prunes over time; **init lays the foundation once**. 
+Build or deliberately restructure the repository's agent-memory hierarchy. This
+is the manual, high-judgment counterpart to `agents-md-sync`, which handles
+small pre-commit updates.
 
-The user will often feed you chaotic, unstructured, or outdated documentation. Your job is to synthesize that chaos, verify it against the actual codebase, and output a lean, machine-readable Progressive Disclosure structure.
+## Select the operation
 
-## Why this matters
+- **Bootstrap** — no root `AGENTS.md` exists. Create the initial hierarchy.
+- **Refactor** — a root `AGENTS.md` exists and the user explicitly requested an
+  audit, rewrite, reorganization, or progressive-disclosure improvement.
 
-Every line you write here will be read by future-you on every single task in this repo. A wrong asserted rule is worse than a missing one, because future-you will trust it. The job is not "produce a thorough-looking document." The job is to capture what verifiably true and stable, and to **surface as questions** the things you suspect but can't confirm from code alone.
+If a root file exists without an explicit refactor request, stop and direct the
+user to `agents-md-sync`.
 
-## Triggering and Refusal
+## Establish truth
 
-**First action on any invocation: check for a root `AGENTS.md`.** 
-If it exists, stop immediately. Do not create a competing file, do not merge, do not overwrite. Tell the user: "An `AGENTS.md` already exists. Use the `agents-md-sync` skill to maintain it - init is only for repos that have none." Exit.
+1. Read user-provided or existing narrative documentation for intent and
+   vocabulary.
+2. Discover every tracked `AGENTS.md`, documentation index, and agent-doc leaf.
+3. In refactor mode, read the complete existing hierarchy once so no durable
+   rule, decision, evidence item, or runbook is silently lost.
+4. Explore code, manifests, scripts, and configuration to verify claimed facts.
+5. Trust code for current mechanical facts; surface unresolved intent conflicts
+   as questions rather than silently choosing.
 
-## Inputs: Chaotic Docs first, Code second
+Classify material as:
 
-The user will likely provide initial project docs (a sprawling README, outdated design docs, pasted chat logs) - or nothing at all.
+- **Verified and stable** — safe to persist.
+- **Inferred or conflicting** — ask the user; do not assert it as a rule.
+- **Mutable work state** — move to Beads, not repository documentation.
+- **Tool-enforced mechanics** — point to the tool or command; do not restate rules.
 
-1. **Read the provided docs first.** They are the authoritative narrative for *intent*: what the project is, what it trying to do, and the vocabulary of the domain.
-2. **Explore the codebase second** to verify what the docs claim and to capture what the docs omit (actual entry points, real script names, how tooling is *actually* configured today).
-3. **When docs and code conflict**, trust the code for facts (it what actually running) but surface the conflict in your draft as a question - don't silently pick a side.
-4. **If no docs at all**, form your understanding entirely from the codebase.
+## Design progressive disclosure
 
-## What to capture (and what to flag)
+Use the smallest hierarchy that routes future agents reliably:
 
-Separate everything you encounter into two buckets:
+1. **Root `AGENTS.md`** — universal WHAT, WHY, HOW, critical boundaries,
+   top-level repository map, verification entry points, and short links to
+   documentation categories. Aim for roughly 60 lines when practical.
+2. **Nested `AGENTS.md`** — add only at stable, high-risk domain boundaries where
+   automatic scoped loading materially improves correctness. Keep each one a
+   concise router; do not copy the leaf documentation into it.
+3. **Category indexes** — use self-describing `agent_docs/<domain>/README.md`
+   files to route from a broad domain to focused leaves.
+4. **Leaf documents** — store cohesive architecture, invariants, evidence, and
+   runbooks. Split large chronological or multi-domain files; avoid tiny files
+   that cannot stand alone.
 
-### 1. Verified - safe to assert as fact
-Things you can point to a file, command, or declaration for:
-- **Stack and versions** - languages, frameworks, dependencies (e.g., from `package.json`).
-- **Entry points** - where execution actually starts.
-- **Scripts and commands** - build, test, lint, dev (from configurations, not just README promises).
-- **Tooling conventions** - "Formatting via Prettier (see `.prettierrc`)" rather than copying the rules.
-- **Navigation pointers** - where to look for X (e.g., `file:src/db/schema.ts`).
+Prefer pointers to authoritative code and configuration over copied snippets.
+Do not list every nested router or leaf from the root file.
 
-### 2. Inferred - surface as a question, never assert
-Things that look like rules but you can't verify from a cold read:
-- "We prefer X pattern over Y."
-- "Module X owns concern Y." (plausible, but boundaries are often implicit).
-- Anything that smells like a hidden invariant.
-*Rule of thumb:* If you'd be embarrassed to have future-you trust the line and it turns out wrong, it inferred. Put it in the draft as an "**Open Question**".
+## Draft before writing
 
-## Placement: The Progressive Disclosure Architecture
+Present an approval-ready proposal containing:
 
-Do NOT create nested `AGENTS.md` files. We use a centralized architecture.
+- the exact root and nested router structure;
+- the category/leaf tree and routing descriptions;
+- a migration map from old files to new owners;
+- content to prune, with reasons;
+- open questions and conflicts.
 
-1. **Root `AGENTS.md` (Always Created):**
-   This is the router. It must contain WHAT the project is, WHY it exists, HOW to work on it (stack, scripts), and a **Progressive Disclosure** section that explicitly links to the files in `agent_docs/`. Keep it under 60 lines if possible.
+Do not write until the user approves the structure. In refactor mode, preserve
+substantive existing content by default and make deletions explicit.
 
-2. **The `agent_docs/` Directory (Created based on complexity):**
-   Group the chaotic documentation into distinct, bounded contextual files. 
-   - *Example splits:* `agent_docs/architecture_and_state.md`, `agent_docs/testing_rules.md`, `agent_docs/deployment_and_ci.md`.
-   - *Rule:* Only create a separate file if an outsider would hit a wall without it, and if it too detailed for the root file. Don't over-fragment. 2-4 files is usually plenty for a new repo.
+## Apply and validate
 
-## The Flow
+After approval:
 
-1. **Refuse if exists.** Look for `AGENTS.md` in the root. If found → stop.
-2. **Absorb Inputs.** Read any chaotic docs provided by the user.
-3. **Explore the Codebase.** (If repo > 200 files, use a subagent with a focused brief to find entry points, configs, and layout).
-4. **Bucket & Filter.** Ruthlessly separate Verified facts from Inferred guesses.
-5. **Draft Inline (Do not write files yet).** Present your proposed structure to the user in your response:
-   - Provide the exact markdown for the root `AGENTS.md`.
-   - Provide the exact markdown for each planned `agent_docs/*.md` file.
-   - Include an "**Open Questions**" section at the end collecting every inferred item/conflict.
-6. **Wait for Approval.** The user gets to see what you are about to inject into every future session. They may edit, trim, or answer your open questions.
-7. **Write.** ONLY after the user approves, create the `agent_docs/` folder and write the files to disk.
+1. Write the new hierarchy and update all relative links.
+2. Remove superseded files only after their content has a verified owner.
+3. Search repository and durable task text for stale paths.
+4. Validate every tracked `AGENTS.md` and agent-doc link.
+5. Confirm root and nested routers remain concise and non-duplicative.
+6. Compare migrated historical/evidence content with the pre-refactor version.
+7. Report additions, moves, pruning, rejected candidates, and unresolved items.
 
-## Anti-patterns
-
-- **Asserting inferred rules.** This is the cardinal sin. When uncertain, ask.
-- **Stuffing the root file.** If the root file is getting huge, you are failing to use `agent_docs/` or you are copying rules that linters already enforce.
-- **Over-fragmenting `agent_docs/`.** Don't create 10 different files with 3 lines each. Group related concepts.
-- **Duplicating the README.** If the README covers setup perfectly, point at it. Don't transcribe it.
-- **Skipping the approval gate.** Never write the files without showing the draft and asking for the green light first.
+Do not commit, push, deploy, or mutate Beads beyond the task explicitly
+authorized for the refactor.

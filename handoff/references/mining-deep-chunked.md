@@ -1,41 +1,36 @@
 # Deep and Chunked Delta Mining
 
-Use this procedure when a session is long, multi-topic, or contains many tool
-calls. Its purpose is to prevent lost decisions and failures, not to make the
-handoff longer.
+Use this procedure when a session is long, multi-topic, or tool-heavy. Its
+purpose is to prevent lost decisions and failures, not to make the checkpoint
+longer.
 
-## Deep Pass
+## Deep pass
 
-1. Extract current-session changes, decisions, failed approaches, verification,
+1. Extract current changes, decisions, failed approaches, verification,
    worktree state, user-direction changes, and unresolved questions.
 2. Re-scan the middle of the conversation for details missed by recency bias.
-3. Compare every candidate fact with the parent handoff, current Beads state,
-   Git, and durable project documentation.
-4. Remove anything already authoritative elsewhere unless its change is needed
-   to resume this session.
+3. Compare candidates with the active Beads issue, Git, code, and durable docs.
+4. Remove anything already authoritative elsewhere unless its current delta is
+   necessary to resume.
 
-## Chunked Pass
+## Chunked pass
 
-1. Divide the conversation into natural chronological segments based on topic
-   or implementation phase.
-2. Apply the same delta checklist independently to each segment.
-3. Merge chronologically. Later decisions override earlier ones; preserve an
-   earlier approach only when its failure explains the current design.
-4. Deduplicate against the parent handoff and between output sections.
-5. Verify final claims against current files, Git, tests, and Beads.
+1. Divide the conversation into natural chronological topic segments.
+2. Apply the same delta checklist to each segment.
+3. Merge chronologically; later decisions override earlier ones.
+4. Preserve an earlier approach only when its failure explains current state.
+5. Deduplicate between output sections and verify claims against current facts.
 
-## Evidence Selection
+## Evidence selection
 
-Keep evidence that changes what the next session should believe or do:
+Keep only evidence that changes what the next session should believe or do:
 
-- exact failing and passing test results;
+- exact failing and passing results;
 - measurements that drove a decision;
-- error messages needed to recognize a recurring failure;
-- paths to task-specific raw evidence;
+- error text needed to recognize a recurring failure;
+- task-specific raw evidence needed for continuation;
 - unresolved state that cannot be reconstructed cheaply.
 
-Prefer the failure-to-fix transition over a complete passing-test inventory.
-Summarize an unchanged quality-gate suite once. Omit routine command transcripts,
-repeated full quality-gate tables, file-read chronology, and evidence already
-recorded in durable project documentation.
-Use an optional appendix in the same handoff only when raw evidence is necessary.
+Prefer failure-to-fix transitions over full command transcripts. Summarize an
+unchanged gate suite once. Use one optional appendix only when raw evidence is
+necessary.

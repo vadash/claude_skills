@@ -1,59 +1,40 @@
 # Close Session Flow
 
-Use only after the handoff has been written and the user asks to close or wrap
-up the session.
+Use only after the handoff is written and the user asks to close or wrap up.
 
-## 1. Re-check Policy and Authority
+## Re-check policy and authority
 
-Read current repository and user instructions again. A handoff request or a
-request to close the session does not automatically authorize a commit, push,
-Beads remote sync, archive, issue closure, or deployment.
+Inspect current Git and Beads state. A handoff or close-session request does not
+automatically authorize a commit, push, Beads remote sync, deployment, issue
+closure, archival, or deletion.
 
-Inspect current Git and Beads state with the available shell and tools. Do not
-assume a particular operating system or shell.
+Close an issue only when acceptance is actually complete. Otherwise leave it
+open or in progress with concise current-state notes; never put the handoff path
+in those notes.
 
-## 2. Close Beads Work Only When Complete
+## Commit only with authority
 
-Close an issue only when its acceptance criteria are actually satisfied and
-current policy permits closure. Otherwise leave it open or in progress and
-ensure its notes point to the handoff.
+If commit authority is explicit, review and stage only session-owned files,
+follow repository conventions, and report the commit plus remaining dirty
+state. Include the tracked handoff only when repository policy or the user wants
+it in that commit.
 
-## 3. Commit Only With Authority
+Without authority, do not commit. Report the exact state and proposed next step.
 
-If commit authority is explicit:
+## Keep cleanup manual
 
-1. Review staged, unstaged, untracked, and deleted files.
-2. Stage only files belonging to this session.
-3. Include the handoff in the same commit when policy expects it to be tracked.
-4. Use the repository's commit-message conventions.
-5. Report the resulting commit hash and any remaining dirty files.
+Do not move, archive, or delete handoffs during ordinary session closure. The
+user may delete the checkpoint after the continuation session no longer needs
+it. Because Beads stores no handoff path, that deletion requires no task-memory
+cleanup.
 
-Do not append a commit hash to the handoff after committing unless the user also
-authorizes a follow-up commit or amend. Record the hash in Beads notes when a
-durable pointer is needed.
-
-If commit authority is absent, do not commit. Report the exact dirty state and
-the proposed next command or ask for authorization when the user wants a commit.
-
-Never add product-specific AI attribution or co-author trailers unless current
-repository policy explicitly requires them.
-
-## 4. Do Not Archive Automatically
-
-Do not move, rename, delete, or archive handoffs during ordinary session
-closure. Archival is separate repository maintenance and requires explicit
-authority plus reference validation.
-
-## 5. Produce the Resume Prompt
-
-Provide a concise prompt using the active Beads issue and handoff path:
+## Resume prompt
 
 ```text
-Read `{handoff_path}` (chain `{chain_tag}` seq `{N}`), then run
-`bd show {primary_issue}` and continue from “Next Action”. Verify the recorded
-Git/worktree state before editing and report any drift.
+Read `{handoff_path}`, then run `bd show {primary_issue}` and continue from
+“Next Action”. Verify the recorded Git/worktree state before editing and report
+any drift. This handoff is temporary and may be deleted after it is no longer
+needed.
 ```
 
-Do not include links to general repository instruction files or durable project
-documentation. The next session must discover and obey repository policy through
-its normal startup process.
+The next session discovers repository policy through its normal startup path.
