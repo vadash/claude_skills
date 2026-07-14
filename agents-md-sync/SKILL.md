@@ -3,74 +3,64 @@ name: agents-md-sync
 description: >-
   Incrementally sync session learnings into every applicable tracked AGENTS.md
   and agent_docs file immediately before a commit or explicit session wrap-up.
-  Use only after implementation is complete; keep root and nested routers lean,
-  update relevant indexed leaf documentation, and prune obsolete guidance.
-  Full hierarchy audits or rewrites belong to agents-md-init.
+  Use only after implementation is complete; keep routers lean, update relevant
+  indexed leaves, and prune obsolete guidance. Use agents-md-init for full
+  hierarchy audits or rewrites.
 ---
 
 # AGENTS.md Sync
 
-Run at the end of an implementation session, immediately before staging a
-commit or wrapping up. Capture only stable, reusable knowledge learned during
-the complete session.
+At session end, before staging or wrap-up, persist only stable, reusable
+knowledge learned during the complete implementation.
 
-## Timing guard
+## Timing
 
-- If named inside a longer task, defer until implementation and verification are
-  complete.
+- If named within a longer task, defer until implementation and verification
+  finish.
 - A casual mention of commit or docs is not a trigger.
-- For a broad hierarchy rewrite, stop and use `agents-md-init` instead.
+- Use `agents-md-init` for broad hierarchy rewrites.
 
-## Discover the hierarchy
+## Discover and verify
 
-1. Glob every tracked `AGENTS.md` in the repository and read all of them. Never
-   assume the root is the only instruction file.
-2. Read every `agent_docs/**/README.md` category index.
-3. Use changed paths and candidate learnings to select only the relevant leaf
-   documents. Do not load the entire knowledge base on every commit.
-4. Inspect the session diff, tests, failures, decisions, and current code before
-   treating a candidate learning as true.
+1. Glob and read every tracked `AGENTS.md`; never assume root is alone.
+2. Read every `agent_docs/**/README.md` index.
+3. Select relevant leaves from changed paths and candidate learnings; do not
+   load the whole knowledge base by default.
+4. Check candidates against current code, diff, tests, failures, and decisions.
 
 ## Persistence filter
 
-Add a learning only when all are true:
+Persist only content that is:
 
-1. **Reusable** — useful in future work, not merely today's implementation.
-2. **Non-obvious** — not clear from code, types, tests, or configuration.
-3. **Not tool-owned** — not formatting, lint, generated output, or task state.
-4. **Stable** — unlikely to be obsolete soon.
+1. reusable beyond current task;
+2. non-obvious from code, types, tests, or configuration;
+3. not owned by formatters, linters, generators, or task tracking;
+4. stable enough for future sessions.
 
-When uncertain, leave it out. Do not copy Beads status, handoff content,
-chronological session history, or ignored local evidence into agent docs.
+When uncertain, omit it. Never copy Beads state, handoffs, session chronology,
+or ignored local evidence into agent docs.
 
-## Place at the narrowest scope
+## Place narrowly
 
-| Learning | Destination |
+| Content | Owner |
 |---|---|
 | Universal project identity or boundary | Root `AGENTS.md` |
-| Stable domain-specific instruction or routing | Nearest tracked nested `AGENTS.md` |
-| Detailed architecture, invariant, evidence, or runbook | Relevant agent-doc leaf |
-| New leaf within an existing domain | Leaf plus its category index |
-| New top-level domain | New category index plus one root link |
+| Domain instruction or routing | Nearest nested `AGENTS.md` |
+| Architecture, invariant, evidence, runbook | Relevant leaf |
+| New leaf in existing domain | Leaf and category index |
+| New top-level domain | Category index and one root link |
 
-Topical ownership wins over the module where the learning happened.
+Topical ownership beats location where knowledge was discovered.
 
-## Edit and prune
+## Edit, prune, validate
 
 - Merge duplicates and replace contradictions; never append blindly.
-- Prune dead paths, obsolete workarounds, removed behavior, stale TODOs, and
-  prose duplicated by tools.
-- When changing a leaf or router, check its siblings and index for stale routing.
-- Keep root and nested routers short; move detail downward instead of expanding
-  always-loaded context.
-- Never mutate Beads, handoffs, commits, or deployments from this skill.
+- Remove dead paths, obsolete workarounds/behavior/TODOs, and tool-owned prose.
+- When changing a router or leaf, check its index and siblings for stale routes.
+- Keep routers short; move detail into leaves.
+- Re-glob tracked `AGENTS.md`; verify changed indexes and all relative links.
+- Review diff for duplicate or task-specific prose.
+- Report additions, removals, moves, and rejected candidates.
 
-## Validate and report
-
-1. Re-glob all tracked `AGENTS.md` and verify their relative links.
-2. Verify each changed category index and leaf link.
-3. Review the diff for duplicated or task-specific prose.
-4. Report what was added, removed, moved, and considered but rejected.
-
-Apply edits directly at the correct end-of-session moment so they can be
-included in the same authorized commit.
+Edit directly at the correct end-of-session moment for inclusion in the same
+authorized commit. Never mutate Beads, handoffs, commits, or deployments.

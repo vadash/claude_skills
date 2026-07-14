@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Create one compact temporary session checkpoint for an active Beads-tracked workstream when context is running low or work is pausing. Capture current deltas, verified state, and the next action for the immediately following session without creating handoff chains, archives, durable memories, or duplicated project documentation.
+description: Create one compact temporary session checkpoint for an active Beads-tracked workstream when context is low or work pauses. Capture current deltas, verified state, and the immediate next action without chains, archives, durable memories, or duplicated project documentation.
 user_invocable: true
 triggers:
   - do a handoff
@@ -15,73 +15,58 @@ argument-hint: [optional reason, e.g. "context low", "end of day"]
 
 # Session Handoff
 
-Create one compact, evidence-backed checkpoint for the immediately following
-session. The Beads issue is the durable workstream identity; the handoff file is
-temporary and may be deleted after the continuation session no longer needs it.
+Create one evidence-backed checkpoint for the next session. Beads owns durable
+workstream identity; handoff is temporary and deletable after continuation.
 
 **Arguments:** $ARGUMENTS
 
 ## Guards
 
-- Run only when the user explicitly asks for a handoff now.
-- Require an active Beads workspace and an issue representing the work. Create
-  and claim one only when no suitable issue exists.
-- Treat the request as authority to write one handoff and update current issue
-  notes. Do not infer authority to commit, push, sync, deploy, archive, close
-  issues, delete older handoffs, or move files.
-- Never create a chain, parent link, sequence, archive, or Beads memory.
+- Run only on an explicit handoff request.
+- Require a Beads workspace and issue for this work; create and claim one only
+  if none is suitable.
+- Authority covers one handoff and current issue notes, not commit, push, sync,
+  deploy, archive, closure, deletion, or moving files.
+- Never create handoff chains, parent links, sequences, archives, or Beads
+  memories.
 
-## Gather current state
+## Gather
 
-Read applicable repository policy, the active issue, Git state, changed files,
-tests and measurements actually observed, unresolved failures, and user
-direction introduced or changed this session.
+Read repository policy, active issue, Git state, changed files, observed tests
+and measurements, unresolved failures, and user-direction changes from this
+session.
 
-Repository instructions and durable project documentation are inputs, not
-handoff content. Do not link or copy `AGENTS.md` or `agent_docs/`. Never expose
-secrets, ignored configuration, real deployment identifiers, or unfiltered logs.
+Repository instructions and durable docs are inputs, never handoff content. Do
+not link or copy `AGENTS.md` or `agent_docs/`. Exclude secrets, ignored config,
+real deployment identifiers, and unfiltered logs.
 
-For long or tool-heavy sessions, read `references/mining-deep-chunked.md` and use
-its multi-pass procedure.
+For long, multi-topic, or tool-heavy sessions, follow
+`references/mining-deep-chunked.md`.
 
-## Write one temporary file
+## Write checkpoint
 
-Use the first existing directory, creating `plans/handoffs/` only when neither
-exists:
+Use first existing directory; create `plans/handoffs/` only if neither exists:
 
 1. `plans/handoffs/`
 2. `.claude/handoffs/`
 
-Name the file:
+Filename: `HANDOFF_{primary_issue}_{2-4-word-slug}_{YYYY-MM-DD}.md`. Add `_2`,
+`_3`, etc. only on collision; existing files are not parents.
 
-`HANDOFF_{primary_issue}_{2-4-word-slug}_{YYYY-MM-DD}.md`
+Follow `references/output-template.md`, reread output, and remove duplication.
+Add an appendix only when raw evidence is required to resume.
 
-Append `_2`, `_3`, and so on only on collision. Existing handoffs are not
-parents and do not define a chain.
+## Update Beads
 
-Read `references/output-template.md`, write the complete checkpoint, then read
-it back and remove duplication. Add an appendix only when raw evidence is
-genuinely necessary to resume.
-
-## Update Beads without linking the file
-
-Update the active issue notes with a concise current outcome and next action.
-Preserve still-relevant issue context, but replace stale progress rather than
-appending a diary.
-
-Do not store the handoff path, filename, resume prompt, or a copy of its body in
-issue notes. Never call `bd remember` for handoff discovery.
+Replace stale issue progress with concise current outcome and next action while
+preserving relevant context. Do not store handoff path/name, resume prompt, or
+body in notes. Never use `bd remember` for handoff discovery.
 
 ## Validate and report
 
-Read `references/validation.md` and fix every failed check. Report:
+Follow `references/validation.md`; fix every failed check. Report handoff path,
+active issue, validation result, exact next action, and uncommitted or separately
+authorized state.
 
-- handoff path;
-- active Beads issue;
-- validation result;
-- exact next action;
-- uncommitted state or separately authorized actions.
-
-If the user asks to close the session, read `references/close-session.md`.
-Return its resume prompt. The user may delete the handoff after the continuation
-session has safely incorporated it.
+If user asks to close the session, follow `references/close-session.md` and
+return its resume prompt. User may delete checkpoint once safely incorporated.

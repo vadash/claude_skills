@@ -1,66 +1,62 @@
 # Handoff Output Template
 
-Use this compact structure. Capture deltas and resumption facts, not a second
-copy of durable documentation.
+Capture deltas and resumption facts, not durable documentation.
 
 ```markdown
-# {One-line session outcome and immediate continuation}
+# {Session outcome and immediate continuation}
 
 **Date:** {YYYY-MM-DD}
 **Session outcome:** {completed | paused | blocked}
-**Bead(s):** {active Beads issue IDs}
+**Bead(s):** {active issue IDs}
 **Epic:** {epic ID, or none}
-**Temporary:** Delete after the continuation session no longer needs this checkpoint.
+**Temporary:** Delete after continuation no longer needs this checkpoint.
 
 ---
 
 ## Resume at a Glance
 
-{A short paragraph or 3-6 bullets covering the goal, current state, what is
-complete versus incomplete, and the first action for the next session.}
+{Short paragraph or 3-6 bullets: goal, current state, complete/incomplete work,
+and first next-session action.}
 
 ## Changes This Session
 
-{Only current-session deltas. Group behavior/implementation and task-state
-changes when useful. Do not restate stable architecture or historical scope.}
+{Current-session deltas only. Group implementation and task-state changes when
+useful. Omit stable architecture and historical scope.}
 
 ## Decisions and Failed Approaches
 
-{Include only non-obvious decisions, rejected alternatives, and expensive
-failures with reasons. Write `None` when there were none.}
+{Only non-obvious decisions, rejected alternatives, and expensive failures,
+with reasons. Otherwise `None`.}
 
 ## Verification
 
-{Include failures or regressions and their final state, changed acceptance
-results, decision-driving measurements, and at most one summary of an otherwise
-unchanged passing suite. Mark inherited or unverified claims.}
+{Failures/regressions and final state; changed acceptance results;
+decision-driving measurements; at most one summary of unchanged passing suite.
+Mark inherited/unverified claims.}
 
 ## Worktree State
 
-{Record staged, unstaged, untracked, and deleted files; incomplete edits; and
-whether the handoff itself is committed. Write `Clean` when appropriate.}
+{Staged, unstaged, untracked, and deleted files; incomplete edits; whether this
+handoff is committed. Use `Clean` when applicable.}
 
 ## User Direction Delta
 
-{Only directions introduced, changed, or revoked this session. Write `None`
-when unchanged.}
+{Directions introduced, changed, or revoked this session. Otherwise `None`.}
 
 ## Risks and Open Questions
 
-{Only active blockers, material risks, and unanswered questions. Write `None`
-when there are none.}
+{Active blockers, material risks, unanswered questions. Otherwise `None`.}
 
 ## Next Action
 
 **First action:** {one concrete action tied to a Beads issue}
 
-{Optionally list 1-4 ordered follow-ons. Include only task-specific commands and
-files required to resume.}
+{Optional 1-4 ordered follow-ons. Include only task-specific commands/files.}
 
 ## Appendix: Detailed Evidence or Chronology
 
-{OPTIONAL. Include only necessary raw measurements or a complex failure timeline.
-Omit the section otherwise.}
+{Optional; only necessary raw measurements or complex failure timeline. Omit
+section otherwise.}
 ```
 
-Do not link `AGENTS.md`, `AGENT.md`, or anything under `agent_docs/`.
+Do not link `AGENTS.md`, `AGENT.md`, or `agent_docs/`.

@@ -1,32 +1,28 @@
 # Close Session Flow
 
-Use only after the handoff is written and the user asks to close or wrap up.
+Use only after writing handoff and user asks to close or wrap up.
 
-## Re-check policy and authority
+## Recheck authority
 
-Inspect current Git and Beads state. A handoff or close-session request does not
-automatically authorize a commit, push, Beads remote sync, deployment, issue
-closure, archival, or deletion.
+Inspect Git and Beads state. Handoff/closure does not authorize commit, push,
+Beads remote sync, deploy, issue closure, archive, or deletion.
 
-Close an issue only when acceptance is actually complete. Otherwise leave it
-open or in progress with concise current-state notes; never put the handoff path
-in those notes.
+Close issue only when acceptance is complete. Otherwise leave it open/in
+progress with current notes; never store handoff path there.
 
-## Commit only with authority
+## Commit
 
-If commit authority is explicit, review and stage only session-owned files,
-follow repository conventions, and report the commit plus remaining dirty
-state. Include the tracked handoff only when repository policy or the user wants
-it in that commit.
+With explicit authority, review and stage only session-owned files, follow
+repository convention, then report commit and remaining dirty state. Include a
+tracked handoff only when policy or user requests it.
 
-Without authority, do not commit. Report the exact state and proposed next step.
+Without authority, do not commit; report exact state and proposed next step.
 
-## Keep cleanup manual
+## Cleanup
 
-Do not move, archive, or delete handoffs during ordinary session closure. The
-user may delete the checkpoint after the continuation session no longer needs
-it. Because Beads stores no handoff path, that deletion requires no task-memory
-cleanup.
+Do not move, archive, or delete handoffs during normal closure. User may delete
+checkpoint after continuation no longer needs it; Beads needs no cleanup because
+it stores no handoff path.
 
 ## Resume prompt
 
@@ -37,4 +33,4 @@ any drift. This handoff is temporary and may be deleted after it is no longer
 needed.
 ```
 
-The next session discovers repository policy through its normal startup path.
+Next session discovers repository policy through normal startup.

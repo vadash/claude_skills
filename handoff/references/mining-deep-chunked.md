@@ -1,36 +1,33 @@
 # Deep and Chunked Delta Mining
 
-Use this procedure when a session is long, multi-topic, or tool-heavy. Its
-purpose is to prevent lost decisions and failures, not to make the checkpoint
-longer.
+Use for long, multi-topic, or tool-heavy sessions to recover important deltas,
+not lengthen checkpoint.
 
 ## Deep pass
 
-1. Extract current changes, decisions, failed approaches, verification,
-   worktree state, user-direction changes, and unresolved questions.
-2. Re-scan the middle of the conversation for details missed by recency bias.
-3. Compare candidates with the active Beads issue, Git, code, and durable docs.
-4. Remove anything already authoritative elsewhere unless its current delta is
-   necessary to resume.
+1. Extract current changes, decisions, failures, verification, worktree state,
+   user-direction changes, and open questions.
+2. Re-scan conversation middle for recency-missed details.
+3. Check candidates against active issue, Git, code, and durable docs.
+4. Remove authoritative content unless its current delta is needed to resume.
 
 ## Chunked pass
 
-1. Divide the conversation into natural chronological topic segments.
-2. Apply the same delta checklist to each segment.
-3. Merge chronologically; later decisions override earlier ones.
-4. Preserve an earlier approach only when its failure explains current state.
-5. Deduplicate between output sections and verify claims against current facts.
+1. Split conversation into chronological topic segments.
+2. Apply same delta checklist to each.
+3. Merge chronologically; later decisions supersede earlier ones.
+4. Keep an earlier approach only when its failure explains current state.
+5. Deduplicate sections and verify claims against current facts.
 
-## Evidence selection
+## Evidence
 
-Keep only evidence that changes what the next session should believe or do:
+Keep only evidence that changes next-session belief or action:
 
-- exact failing and passing results;
-- measurements that drove a decision;
-- error text needed to recognize a recurring failure;
+- exact failing/passing results;
+- decision-driving measurements;
+- error text needed to recognize recurrence;
 - task-specific raw evidence needed for continuation;
-- unresolved state that cannot be reconstructed cheaply.
+- unresolved state expensive to reconstruct.
 
-Prefer failure-to-fix transitions over full command transcripts. Summarize an
-unchanged gate suite once. Use one optional appendix only when raw evidence is
-necessary.
+Prefer failure-to-fix transitions over transcripts. Summarize unchanged gates
+once. Use one appendix only when raw evidence is necessary.
