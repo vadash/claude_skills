@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: Explore user intent, requirements, and design before implementation. Use for features, components, or behavioral changes.
+description: MANUAL ONLY. Explore user intent, requirements, and design before implementation. Use for features, components, or behavioral changes.
 disable-model-invocation: true
 argument-hint: [@context or description]
 ---

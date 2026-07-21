@@ -10,57 +10,40 @@ description: >-
 
 # AGENTS.md Sync
 
-At session end, before staging or wrap-up, persist only stable, reusable
-knowledge learned during the complete implementation.
+At session end, before staging or wrap-up, persist only stable, reusable knowledge learned during the complete implementation. Protect the **Progressive Disclosure** architecture from context bloat.
 
 ## Timing
+- Run only after implementation and verification are fully complete.
+- Do not run for casual mentions of "commit" or "docs".
+- If the tree requires a massive overhaul, stop and recommend `agents-md-init`.
 
-- If named within a longer task, defer until implementation and verification
-  finish.
-- A casual mention of commit or docs is not a trigger.
-- Use `agents-md-init` for broad hierarchy rewrites.
+## Discover & Filter
+1. Glob and read the root `AGENTS.md`, relevant nested `AGENTS.md` routers, and targeted `agent_docs/` leaves.
+2. Check your candidate learnings against the diff and tests.
+3. **Strict Persistence Filter - ONLY record if:**
+   - It is a non-obvious "gotcha" (e.g., "Library X silently drops connections if Y is null").
+   - It is a new operational step or runbook update.
+   - It is a permanent architectural decision (ADR).
+4. **DO NOT record if:**
+   - A tool can enforce it (Linters, Prettier, TypeScript).
+   - It is task-specific chronological state ("Yesterday we tried X and it failed").
+   - It is already obvious from reading the code types.
 
-## Discover and verify
+## Place Narrowly
+Topical ownership beats the location where the knowledge was discovered.
 
-1. Glob and read every tracked `AGENTS.md`; never assume root is alone.
-2. Read every `agent_docs/**/README.md` index.
-3. Select relevant leaves from changed paths and candidate learnings; do not
-   load the whole knowledge base by default.
-4. Check candidates against current code, diff, tests, failures, and decisions.
+| Content Type | Target File | Action |
+|---|---|---|
+| Universal project identity or global boundary | Root `AGENTS.md` | Keep it brief. |
+| Domain instruction or routing logic | Nearest nested `AGENTS.md` | Add conditional pointer to a leaf. |
+| Specific Gotchas, Runbooks, or Details | Relevant leaf in `agent_docs/` | Append or update existing lists. |
+| Entirely new domain | Root Map + `agent_docs/` | Create directory, `README.md` router, and leaf. |
 
-## Persistence filter
+## Edit, Prune, Validate
+- **Never append blindly.** Replace contradictions and merge duplicates.
+- **Keep routers lean.** If a nested `AGENTS.md` is getting too long, move the details into a `gotchas.md` leaf and leave a pointer.
+- Prune dead paths, obsolete workarounds, and TODOs.
+- Re-glob to ensure all relative links between routers and leaves are valid.
+- Report what was added, removed, or rejected (e.g., "Skipped saving styling rule because ESLint enforces it").
 
-Persist only content that is:
-
-1. reusable beyond current task;
-2. non-obvious from code, types, tests, or configuration;
-3. not owned by formatters, linters, generators, or task tracking;
-4. stable enough for future sessions.
-
-When uncertain, omit it. Never copy Beads state, handoffs, session chronology,
-or ignored local evidence into agent docs.
-
-## Place narrowly
-
-| Content | Owner |
-|---|---|
-| Universal project identity or boundary | Root `AGENTS.md` |
-| Domain instruction or routing | Nearest nested `AGENTS.md` |
-| Architecture, invariant, evidence, runbook | Relevant leaf |
-| New leaf in existing domain | Leaf and category index |
-| New top-level domain | Category index and one root link |
-
-Topical ownership beats location where knowledge was discovered.
-
-## Edit, prune, validate
-
-- Merge duplicates and replace contradictions; never append blindly.
-- Remove dead paths, obsolete workarounds/behavior/TODOs, and tool-owned prose.
-- When changing a router or leaf, check its index and siblings for stale routes.
-- Keep routers short; move detail into leaves.
-- Re-glob tracked `AGENTS.md`; verify changed indexes and all relative links.
-- Review diff for duplicate or task-specific prose.
-- Report additions, removals, moves, and rejected candidates.
-
-Edit directly at the correct end-of-session moment for inclusion in the same
-authorized commit. Never mutate Beads, handoffs, commits, or deployments.
+Edit directly at the correct end-of-session moment for inclusion in the same authorized commit. Never mutate external state tools (like Beads) or trigger deployments.

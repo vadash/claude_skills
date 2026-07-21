@@ -6,71 +6,46 @@ disable-model-invocation: true
 
 # AGENTS.md Init and Refactor
 
-Build or deliberately restructure repository agent memory. `agents-md-sync`
-handles small pre-commit updates.
+Build or deliberately restructure repository agent memory. Your goal is to maximize context efficiency through **Progressive Disclosure**. The LLM context window is a precious resource; never bloat it with redundant prose.
 
-## Choose mode
+## Choose Mode
+- **Bootstrap:** No root `AGENTS.md` exists; create the hierarchy from scratch.
+- **Refactor:** Root exists and user explicitly requested an audit, rewrite, reorganization, or bloat-reduction.
+*(If root exists without an explicit refactor request, stop and direct user to `agents-md-sync`.)*
 
-- **Bootstrap:** no root `AGENTS.md`; create the hierarchy.
-- **Refactor:** root exists and user explicitly requested an audit, rewrite,
-  reorganization, or progressive-disclosure improvement.
+## 1. Establish Truth & Classify
+1. Read supplied narrative docs, existing `AGENTS.md`, and `agent_docs/` leaves.
+2. Verify claims against code, tests, and configuration. Trust code for mechanics.
+3. Classify content:
+   - **Stable Knowledge (Gotchas, Runbooks, ADRs):** Persist in leaves.
+   - **Tool-Enforceable Rules (Linters, Formatting, Types):** DELETE. Do not write prose for things tools catch.
+   - **Mutable State (Tasks, Logs, Chronology):** DELETE. Leave this to task trackers (e.g., Beads).
+   - **Redundant Lore/Bloat:** CONDENSE or DELETE. 
 
-If root exists without an explicit refactor request, stop and direct user to
-`agents-md-sync`.
+## 2. Design the Hierarchy (Strict Rules)
+Use the smallest possible hierarchy to reliably route future agents:
 
-## Establish truth
+* **Root `AGENTS.md` (The Map):** 
+  - Must be **< 60 lines**. 
+  - Contains only: WHAT, WHY, critical global boundaries, universal commands (e.g., test/build), and a strict Documentation Map. 
+  - Never include deep architectural details here.
+* **Nested `AGENTS.md` (The Routers):** 
+  - Sit in major subdirectories (e.g., `frontend/AGENTS.md`).
+  - Act as conditional routers: *"If modifying X, read `agent_docs/frontend/x_gotchas.md`"*.
+  - May contain a few bullet points of strict domain rules, but NO heavy prose.
+* **`agent_docs/<domain>/README.md` (Domain Indexes):**
+  - Routers for specific documentation domains (e.g., `/architecture`, `/operations`, `/decisions`).
+* **Leaves (`*_gotchas.md`, `*_runbooks.md`, `decisions.md`):**
+  - The actual knowledge. Consolidate tiny fragmented files. Group by cohesion.
 
-1. Read supplied and existing narrative docs for intent and vocabulary.
-2. Discover every tracked `AGENTS.md`, documentation index, and agent-doc leaf.
-3. For refactors, read the complete hierarchy once; preserve every durable rule,
-   decision, evidence item, and runbook unless deletion is explicit.
-4. Verify claims against code, manifests, scripts, and configuration.
-5. Trust code for current mechanics; ask about unresolved intent conflicts.
+## 3. Propose Before Writing
+Present a plan for approval:
+- Exact tree structure (Root, Nested Routers, Domain Indexes, Leaves).
+- Old-to-new migration map (especially what is being consolidated/deleted).
+- List of tool-enforced rules you intend to drop.
 
-Classify content:
-
-- verified, stable knowledge: persist;
-- inferred or conflicting claims: ask, never assert;
-- mutable work state: Beads;
-- tool-enforced mechanics: point to source, do not restate.
-
-## Design progressive disclosure
-
-Use smallest hierarchy that routes future agents reliably:
-
-1. Root `AGENTS.md`: universal WHAT, WHY, HOW, critical boundaries, repository
-   map, verification entry points, and short category links. Aim for about 60
-   lines when practical.
-2. Nested `AGENTS.md`: concise routers only at stable, high-risk domain
-   boundaries where scoped loading improves correctness.
-3. `agent_docs/<domain>/README.md`: route broad domains to focused leaves.
-4. Leaves: cohesive architecture, invariants, evidence, and runbooks. Split
-   multi-domain or large chronological files; avoid tiny fragments.
-
-Prefer pointers to authoritative code/configuration over copied content. Do not
-list every router or leaf from root.
-
-## Propose before writing
-
-Present for approval:
-
-- exact root and nested-router structure;
-- category/leaf tree with routing descriptions;
-- old-to-new migration map;
-- proposed pruning with reasons;
-- conflicts and open questions.
-
-Write only after approval. Preserve substantive content by default; make every
-deletion explicit.
-
-## Apply and validate
-
-1. Write hierarchy and repair relative links.
-2. Remove superseded files only after assigning all content a verified owner.
-3. Search repository and durable task text for stale paths.
-4. Validate every tracked `AGENTS.md` and agent-doc link.
-5. Check routers stay concise and non-duplicative.
-6. Compare migrated history/evidence with pre-refactor content.
-7. Report additions, moves, pruning, rejected candidates, and unresolved items.
-
-Do not commit, push, deploy, or mutate Beads beyond explicit authorization.
+## 4. Apply and Validate
+1. Write the hierarchy. Replace inline code snippets with `file:line` pointers where possible.
+2. Repair all relative links.
+3. Validate that NO router (`AGENTS.md`) contains bloated leaf content.
+4. Report additions, moves, consolidations, and deletions. Do not commit or push.

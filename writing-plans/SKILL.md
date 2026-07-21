@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Convert a design document into a sequential TDD implementation plan.
+description: MANUAL ONLY. Convert a design document into a sequential TDD implementation plan.
 disable-model-invocation: true
 argument-hint: [design-doc-path]
 ---
