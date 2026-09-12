@@ -1,12 +1,7 @@
 ---
 name: ponytail
-description: >
-  Forces the laziest solution that actually works. YAGNI, stdlib before
-  custom code, one line before fifty. Use on ANY coding task: writing,
-  adding, refactoring, fixing, reviewing, or designing code, and choosing
-  libraries or dependencies. Also use whenever the user says "ponytail",
-  "be lazy", "lazy mode", "simplest solution", "yagni", or complains about
-  over-engineering or bloat. Do NOT use for non-coding requests.
+description: Forces the laziest solution that actually works. YAGNI, stdlib before custom code, one line before fifty.
+disable-model-invocation: true
 ---
 
 # Ponytail
