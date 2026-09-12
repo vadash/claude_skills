@@ -1,6 +1,6 @@
 ---
 name: agents-md-init
-description: Manually bootstrap a repository AGENTS.md and agent_docs hierarchy, or explicitly audit and refactor an existing hierarchy for progressive disclosure. Use only when the user directly requests initialization, a full memory/documentation rewrite, or structural AGENTS.md optimization; use agents-md-sync for routine end-of-session maintenance.
+description: Manually bootstrap a repository AGENTS.md and agent_docs hierarchy
 disable-model-invocation: true
 ---
 

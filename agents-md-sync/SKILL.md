@@ -1,6 +1,6 @@
 ---
 name: agents-md-sync
-description: Sync session learnings into AGENTS.md routers and agent_docs leaves before a commit or session wrap-up. Use only after implementation is complete. Keep entries terse; prune obsolete guidance. Use agents-md-init for full hierarchy audits or rewrites.
+description: Manually sync session learnings into AGENTS.md routers and agent_docs leaves before a commit or session wrap-up
 disable-model-invocation: true  
 ---
 
