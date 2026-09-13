@@ -1,7 +1,6 @@
 ---
 name: ponytail
 description: Forces the laziest solution that actually works. YAGNI, stdlib before custom code, one line before fifty.
-disable-model-invocation: true
 ---
 
 # Ponytail
