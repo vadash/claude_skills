@@ -3,26 +3,93 @@ name: documenting-code
 description: Standardizes code comments and docstrings, focusing on intent, business rules, and constraints while removing redundant syntax noise. Use when writing docstrings, refactoring comments, adding inline explanations, or reviewing code documentation.
 ---
 
-# Code Documentation and Commenting Standards
+# Writing code comments
 
-## Core Principles
+Run this before adding or editing any comment. The default is no comment. Good code with clear names carries most of its meaning on its own; a comment earns its place only when it tells a reader something the code cannot.
 
-### 1. Refactor Code Before Adding Comments
-* If an inline comment merely explains *what* confusing syntax is doing, first consider renaming variables or extracting a helper method.
-* Code demonstrates the **WHAT**; comments must explain the **WHY** (business logic, upstream constraints, security edge cases, or non-obvious workarounds).
+## The gate: one question
 
-### 2. Zero-Clutter Parameter & Return Documentation
-* **Never** restate primitive variable names, obvious types, or tautological descriptions (e.g., avoid `@param userId - The user ID`).
-* **Only** document parameters or return values to specify:
-  * **Units of measurement** (e.g., milliseconds, base currency subunits, percentages).
-  * **Domain constraints & invariants** (e.g., "Must be pre-sanitized", "Non-empty string", "Allowed range 1-100").
-  * **Nullability and error conditions** (e.g., "Returns null if upstream cache expires").
+Before writing a comment, answer:
 
-### 3. Idiomatic Formatting by Ecosystem
-* **JavaScript / TypeScript:** TSDoc / JSDoc blocks (`/** ... */`).
-* **Python:** PEP 257 docstrings (`"""..."""`) with concise summaries and specific raises/yields only when non-obvious.
-* **C# / .NET:** Formal XML documentation (`/// <summary>`, `/// <param>`).
-* **Go / Rust:** Idiomatic sentence-style comments directly above the identifier (`// FunctionName ...` or `/// ...`).
+> **What does this tell a future reader that the code itself doesn't?**
 
-### 4. Architectural & Context Preservation
-* Never delete or simplify existing comments referencing architectural decisions, bug trackers, regulatory requirements, or complex system loops (e.g., "sync loop", "provenance tracking", "idempotency key").
+If the answer is "it restates what the code does", delete it. Rename the variable or extract a function instead.
+
+A comment worth keeping answers a _why_ the code can't:
+
+- ✅ `# ATOMIC_REQUESTS is off, so wrap the two writes that must commit together`
+- ✅ `// Stripe sends the amount in cents; the rest of our system uses dollars`
+- ✅ `# Kept in sync with the enum in migrations/0042; update both`
+
+## Delete these
+
+### Narration that restates the code
+
+- ❌ `# increment the counter` above `counter += 1`
+- ❌ `// loop over users` above `for user of users`
+- ❌ `# return the result` above `return result`
+
+If a block needs narration to be followed, the fix is smaller functions and better names, not a comment.
+
+### Change history and chat context
+
+Never record how the code got here. That belongs in the commit message and PR description, where it's attached to the diff and searchable. In the source it's noise that goes stale immediately.
+
+- ❌ `# previously used a set here, switched to a list for ordering`
+- ❌ `// per PR #1234` / `# as discussed` / `# changed because the old way broke`
+- ❌ `# AI: generated this helper` / `// agent: refactored`
+- ❌ `# TODO(2024-01): remove after migration` left in long after the migration
+
+### Perishable measurements and current-state stamps
+
+Measured timings, counts, and rates rot silently: nothing forces them to update, and a rotted number misleads the next person sizing a timeout or shard count. The same goes for "currently" / "today" hedges, because the sentence states the same fact without them. State the durable relationship the number stood for.
+
+- ❌ `# skip the ~20 min build` when the durable fact is that the build is expensive
+- ❌ `# ci-backend runs ~28m, so 60m ≈ one red result` instead of "sized past a full run of the slowest workflow"
+- ❌ `# no story currently opts into webkit snapshots` where dropping "currently" states the same fact
+- ❌ `# ~20 minutes in June, past 25 by July` because trend narration is change history
+
+Numbers that stay:
+
+- A dated snapshot: `# as of August 2024, Homebrew ships 4.13.2` (the date makes staleness visible)
+- A restated adjacent code literal: `# runs that took >5 min (300 seconds)` beside the `300` (it updates with the code)
+- A platform constant: `# GitHub's comment size limit (~64KB)`
+- A target or budget: `# Target: ~15 min per shard` (policy, not measurement)
+- Cited evidence: `# 30% peak memory observed on 16-core runs (#46853)` (the link dates it)
+
+### Commented-out code
+
+Delete it; the version history has it if it's needed again. Commented-out code is ambiguous to the next reader, who can't tell whether it's a note, a rollback plan, or an accident.
+
+### Redundant docstrings and type restatements
+
+- ❌ A docstring that repeats the function name in prose: `"""Gets the user by id."""` on `get_user_by_id`
+- ❌ `# type: string` on an already-typed field
+- ❌ Python test doc comments (the repo convention is none; the test name says it)
+
+## Keep these
+
+- A **why** that isn't obvious from the code: a workaround, a performance trade-off, a spec quirk, an ordering constraint.
+- A **warning** about a consequence that lives elsewhere: "changing this breaks the cache key", "callers rely on this being sorted".
+- A **pointer** to context a reader can't reconstruct from the repo: a link to the spec, ticket, or the reason a surprising value was chosen.
+
+## Style
+
+Write comments the way you'd write technical documentation: explicit and precise. State the reasoning so the reader does not have to infer it. Length is not a target in either direction: don't clip a comment to look terse, and don't pad it to look thorough. Say what needs saying and stop.
+
+- **Be explicit and technical.** State the cause and effect. Name the actual conditions, values, and consequences. A reader should not have to reconstruct your reasoning from a hint.
+- **Use mostly ASD-STE100 Simplified Technical English.** Use active voice, simple tenses, one idea per sentence, and consistent terms.
+- **Let length follow the content.** One line is fine when one line covers it; use more when the reasoning needs more. Neither brevity nor length is the goal.
+- **No em-dash.** The tell to avoid is the clipped two-part phrase joined by a dash, like `# do the thing — it's faster`. Use a real connective instead ("because", "so that", "which means", "to avoid").
+- **Explain why, not what.** The what is in the code; the why usually is not.
+- **Preserve existing comments when moving or refactoring code**, unless the change makes them wrong. Don't drop an existing why just because you're relocating the function.
+- **Match the surrounding density.** Don't add a comment to every line of a file that had none; don't strip a well-commented module bare.
+
+The fix for the em-dash is the connective, not more words. A short comment is fine once the dash is gone:
+
+- ❌ `# batch here — avoids N+1`
+- ✅ `# batch here to avoid an N+1 against posthog_organizationmembership`
+
+## When you're tempted to comment
+
+Try, in order: (1) a better name, (2) a smaller function, (3) a type. Reach for a comment only when none of those can carry the meaning.

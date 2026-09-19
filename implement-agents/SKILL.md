@@ -12,7 +12,11 @@ The root session is the **Orchestrator**. Its objective is high-level coordinati
 
 ## Skill Delegation
 
-Pass skills explicitly into subagent prompts so they load inside isolated context windows:
+Pass skills explicitly into subagent prompts so they load inside isolated context windows.
+
+Bare `/skill:` tokens auto-load inside a **subagent** prompt; backticked names do not load anywhere. Keep names backticked in prose/tables so the orchestrator never auto-loads them, and paste the bare copy-verbatim block into every dispatch prompt.
+
+### Reference table (informational — do NOT copy from this table)
 
 - **Orchestrator**: `/skill:caveman`
 - **Scouts** (Cold only): `/skill:caveman`
@@ -21,6 +25,18 @@ Pass skills explicitly into subagent prompts so they load inside isolated contex
 - **Reviewers**: `/skill:caveman`
 
 Dont read or find skill, just treat it as magic strings. Sub agents will find it
+
+### Subagent Skill Headers (copy verbatim, never edit)
+
+Dispatch prompts MUST begin with the exact matching line from these blocks. Copy the ENTIRE line. Never retype, reorder, add, or drop entries.
+
+```text
+Scout / Verifier / Reviewer:
+Load skills: /skill:caveman.
+
+Writer:
+Load skills: /skill:tdd, /skill:ponytail, /skill:documenting-code, /skill:caveman.
+```
 
 ---
 
