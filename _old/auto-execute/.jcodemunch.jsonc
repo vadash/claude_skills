@@ -1,0 +1,243 @@
+// jcodemunch-mcp configuration
+// Global: ~/.code-index/config.jsonc
+// Project: {project_root}/.jcodemunch.jsonc (optional, overrides global)
+//
+// All values below show defaults. Uncomment to override.
+// Env vars still work as fallback but are deprecated.
+{
+  // Config version - do not edit. Used for additive migrations.
+  "version": "1.13.1",
+  // === Indexing ===
+  // "trusted_folders": [],
+  //   Directories allowed for indexing when whitelist_mode is true.
+  //   In whitelist mode (default), only these folders can be indexed.
+  //   In blacklist mode (whitelist_mode=false), these folders are blocked.
+  // "trusted_folders_whitelist_mode": true,
+  //   true = only trust folders in trusted_folders list (default, secure).
+  //   false = trust all folders EXCEPT those in trusted_folders (blocklist mode).
+  // "max_folder_files": 2000,
+  //   Maximum number of files to index when indexing a local folder.
+  //   Prevents accidental massive indexing jobs.
+  // "gitignore_warn_threshold": 500,
+  //   Emit a warning during index_folder when no root .gitignore is found
+  //   and the indexed file count reaches this value. Helps catch accidental
+  //   indexing of build artifacts or vendored dependencies before they
+  //   bloat the index. Set 0 to disable the warning entirely.
+  // "max_index_files": 10000,
+  //   Maximum number of files to index when indexing a GitHub repo.
+  //   Separate cap from max_folder_files for different use cases.
+  // "staleness_days": 7,
+  //   Days before an index is considered stale (warning only, no blocking).
+  // "max_results": 500,
+  //   Maximum number of results returned by search operations.
+  // "file_tree_max_files": 500,
+  //   Maximum number of files returned by get_file_tree in a single call.
+  //   Prevents token overflow on large or bloated indexes. The response
+  //   includes a hint to use path_prefix when this cap is hit.
+  //   Can also be overridden per-call via the max_files tool parameter.
+  // "extra_ignore_patterns": [],
+  //   Additional gitignore-style patterns to exclude from indexing.
+  //   Merged with JCODEMUNCH_EXTRA_IGNORE_PATTERNS env var.
+  // "exclude_secret_patterns": [],
+  //   Glob patterns to exclude from *secret* detection.
+  //   Use when *secret* has false positives on specific paths.
+  // "extra_extensions": {},
+  //   Map additional file extensions to languages.
+  //   Example: {".mpl": "cpp"} to parse .mpl files as C++.
+  // "context_providers": true,
+  //   Enable context providers for enhanced AI summarization.
+  //   Set false to disable (faster indexing, less context).
+  // === Meta Response Control ===
+  // Allowlist of _meta fields to include in responses.
+  // [] (default) = no _meta at all (maximum token savings).
+  // null = all fields included (set explicitly to opt in).
+  // Uncomment and set to a list of field names to include only those fields.
+  // All available meta fields (sorted alphabetically, each on its own line):
+  "meta_fields": [], // suppress all _meta fields,
+  // === Languages ===
+  // All supported languages. Comment out to disable a language
+  // and its dependent features (e.g. "sql" disables dbt parsing
+  // and search_columns tool).
+  // Each language on its own line (sorted alphabetically):
+  "languages": [
+     // "al",
+     // "ansible",
+     // "asm",
+     // "autohotkey",
+     // "bash",
+     // "blade",
+     // "c",
+     // "cpp",
+     // "csharp",
+     // "css",
+     // "dart",
+     // "ejs",
+     // "elixir",
+     // "erlang",
+     // "fortran",
+     // "gdscript",
+     // "gleam",
+     // "go",
+     // "graphql",
+     // "groovy",
+     // "haskell",
+     // "hcl",
+     // "java",
+     // "javascript",
+     "json",
+     // "julia",
+     // "kotlin",
+     // "less",
+     // "lua",
+     // "luau",
+     // "nix",
+     // "objc",
+     // "openapi",
+     // "perl",
+     // "php",
+     // "proto",
+     // "python",
+     // "r",
+     // "razor",
+     // "ruby",
+     // "rust",
+     // "sass",
+     // "scala",
+     // "scss",
+     // "sql",
+     // "styl",
+     // "swift",
+     // "toml",
+     // "tsx",
+     // "typescript",
+     // "verse",
+     // "vue",
+     // "xml",
+     // "yaml",
+  ],
+  "languages_adaptive": true,
+  //   When true, jcodemunch auto-manages the languages list in this
+  //   project's .jcodemunch.jsonc based on detected languages.
+  //   Detected languages are uncommented; unused ones are commented out.
+  //   Runs on every index_folder call (full and incremental).
+  //   Set in global config to auto-create project configs on first index.
+  //   Set in project config to enable ongoing adaptation.
+  // === Disabled Tools ===
+  // Global: tools listed here are removed from the schema entirely.
+  // Project: tools listed here are rejected at call_tool() with an
+  //   explanatory error (schema is global, can't be changed per-project).
+  // Default: test_summarizer disabled. Uncomment others to disable them.
+  "disabled_tools": [
+    // test_summarizer — diagnostic: sends a probe to the AI summarizer and
+    //   reports status (ok, timeout, error, misconfigured, disabled).
+    //   Remove from this list to enable it, then call it from your MCP client.
+    "index_repo",
+    "index_folder",
+    "summarize_repo",
+    "index_file",
+    "list_repos",
+    //"resolve_repo",
+    "invalidate_cache",
+    "test_summarizer",
+  ],
+  // === Descriptions ===
+  // Append text to shortened tool/param descriptions.
+  // Empty string = use hardcoded minimal base only.
+  // _tool = tool-level description, other keys = param names.
+  // _shared applies across all tools (tool-specific overrides _shared).
+  // Tools not listed here keep their full current descriptions unchanged.
+  "descriptions": {
+    // === Example: Uncomment to enable ===
+    // "search_symbols": {
+    //   "_tool": "",
+    //   "debug": "",
+    //   "detail_level": "",
+    //   "language": ""
+    // },
+    // "find_importers": { "_tool": "" },
+    // "find_references": { "_tool": "" },
+    // "get_blast_radius": { "_tool": "" },
+    // "get_context_bundle": { "_tool": "" },
+    // "suggest_queries": { "_tool": "" },
+    // "_shared": { "repo": "" }
+  },
+  // === Transport ===
+  // Protocol for MCP server communication:
+  //   stdio            - Default. Uses stdin/stdout. Works everywhere.
+  //   sse              - Server-Sent Events over HTTP. Persistent connection.
+  //   streamable-http  - Streamable HTTP. Alternative persistent HTTP mode.
+  // When using sse or streamable-http, also set host and port.
+  // "transport": "stdio",
+  // "host": "127.0.0.1",
+  //   Bind address for HTTP transports. Use 0.0.0.0 for all interfaces.
+  // "port": 8901,
+  //   Port for HTTP transports (sse, streamable-http).
+  // "rate_limit": 0,
+  //   Max requests per minute per client IP. 0 = disabled (default).
+  // === Watcher ===
+  "watch": true,
+  //   Enable automatic reindexing when files change.
+  //   Use "jcodemunch-mcp watch <paths>" CLI command to activate.
+  // "watch_debounce_ms": 2000,
+  //   Milliseconds to wait after a file change before reindexing.
+  //   Higher values reduce CPU usage but slower detection.
+  // "freshness_mode": "relaxed",
+  //   relaxed - Default. Index remains queryable during reindex.
+  //             Best for interactive use (IDE, chat).
+  //   strict  - Blocks queries until fresh index is ready.
+  //             Best for automation/CI where consistency matters.
+  // "strict_timeout_ms": 500,
+  //   Maximum milliseconds to block queries waiting for a reindex in strict mode.
+  //   After this timeout the query proceeds with the stale index.
+  //   Only applies when freshness_mode is "strict". Default: 500.
+  // "claude_poll_interval": 5.0,
+  //   Seconds between polling Claude Code worktrees for changes.
+  // === Logging ===
+  // "log_level": "WARNING",
+  //   DEBUG, INFO, WARNING, ERROR, CRITICAL. WARNING is default for less noise.
+  // "log_file": null,
+  //   Path to log file. null = write to stderr.
+  // === Privacy & Telemetry ===
+  // "redact_source_root": false,
+  //   Replace absolute source_root paths with display_name in responses.
+  //   Set true to hide project paths from clients.
+  // "stats_file_interval": 3,
+  //   Write session_stats.json every N tool calls. 0 = disable writes.
+  //   Lower values = more disk I/O but faster stats for external consumers.
+  // "share_savings": true,
+  //   Enable anonymous token savings telemetry (helps project funding).
+  //   Set false/0 to disable.
+  // "summarizer_concurrency": 4,
+  //   Number of parallel threads for AI summarization.
+  //   Higher = faster indexing but more API calls.
+  // "summarizer_max_failures": 3,
+  //   Consecutive batch failures before the AI summarizer gives up and
+  //   falls back to signature summaries for remaining symbols.
+  //   Set 0 to disable the circuit breaker (never stop retrying).
+  // === AI Summarizer ===
+  // Controls whether AI is used to generate symbol summaries during indexing.
+  //   "auto"  — auto-detect provider from API key env vars (default behavior)
+  //   true    — use the summarizer_provider and summarizer_model values below
+  //   false   — disable AI summarization entirely (signature fallback only)
+  // "use_ai_summaries": "auto",
+  // AI summarizer provider to use when use_ai_summaries is true.
+  // Valid values: "anthropic", "gemini", "openai", "minimax", "glm", "openrouter", "none"
+  // Leave empty ("") to auto-detect from available API keys.
+  // "summarizer_provider": "",
+  // Model name to use for the selected summarizer provider.
+  // Leave empty ("") to use the provider's default model.
+  // Examples: "claude-haiku-4-5-20251001" (anthropic), "gemini-2.5-flash-lite" (gemini),
+  //           "gpt-4o-mini" (openai), "minimax-m2.7" (minimax), "glm-5" (glm),
+  //           "meta-llama/llama-3.3-70b-instruct:free" (openrouter)
+  // "summarizer_model": "",
+  // "embed_model": "",
+  //   Sentence-transformers model name for local (free) semantic embeddings.
+  //   Example: "all-MiniLM-L6-v2". Requires sentence-transformers package.
+  //   When set, takes priority over GOOGLE_API_KEY and OPENAI_API_KEY embeddings.
+  // "allow_remote_summarizer": false,
+  //   Allow remote LLM endpoints for summarization (security risk).
+  //   Default false blocks non-local summarization.
+  // "path_map": "",
+  //   Cross-platform path remapping. Format: "orig1=new1,orig2=new2".
+  //   Allows indexes built on Linux to work on Windows and vice versa.
+}
