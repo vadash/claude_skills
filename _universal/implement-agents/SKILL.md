@@ -12,31 +12,29 @@ The root session is the **Orchestrator**. Its objective is high-level coordinati
 
 ## Skill Delegation
 
-Pass skills explicitly into subagent prompts so they load inside isolated context windows.
+Subagents never see the main session's skill listing. `/skill:<name>` is composer-only syntax — inert inside dispatch prompts. A skill loads inside a subagent only when the subagent calls `read` on its `skill://<name>` URI (verified working).
 
-Bare `/skill:` tokens auto-load inside a **subagent** prompt; backticked names do not load anywhere. Keep names backticked in prose/tables so the orchestrator never auto-loads them, and paste the bare copy-verbatim block into every dispatch prompt.
-
-### Reference table (informational — do NOT copy from this table)
-
-- **Orchestrator**: `/skill:caveman`
-- **Scouts** (Cold only): `/skill:caveman`
-- **Writer** (Coder): `/skill:caveman`, `/skill:tdd`, `/skill:ponytail`, `/skill:documenting-code`
-- **Verifiers**: `/skill:caveman`
-- **Reviewers**: `/skill:caveman`
-
-Dont read or find skill, just treat it as magic strings. Sub agents will find it
+Dispatch prompts MUST begin with the exact matching header line from the block below. Copy the ENTIRE line. Never retype, reorder, add, or drop entries. The subagent MUST call `read` on each URI before any other work — bare URI text alone loads nothing.
 
 ### Subagent Skill Headers (copy verbatim, never edit)
 
-Dispatch prompts MUST begin with the exact matching line from these blocks. Copy the ENTIRE line. Never retype, reorder, add, or drop entries.
-
 ```text
 Scout / Verifier / Reviewer:
-Load skills: /skill:caveman.
+Before any work, read and follow: skill://caveman.
 
 Writer:
-Load skills: /skill:tdd, /skill:ponytail, /skill:documenting-code, /skill:caveman.
+Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
 ```
+
+### Reference table (informational — do NOT copy from this table)
+
+- **Orchestrator**: `skill://caveman`
+- **Scouts** (Cold only): `skill://caveman`
+- **Writer** (Coder): `skill://caveman`, `skill://tdd`, `skill://ponytail`, `skill://documenting-code`
+- **Verifiers**: `skill://caveman`
+- **Reviewers**: `skill://caveman`
+
+Keep names backticked in prose/tables so the Orchestrator never reads them into its own context. Do not pre-read skills in the Orchestrator; the subagent reads them.
 
 ---
 
@@ -67,9 +65,9 @@ Evaluate context state before calling tools:
 Never dump raw source files into the Orchestrator. Dispatch two parallel Scout subagents:
 
 - **Scout A (Codebase & Verification Commands)**:
-  - *Prompt*: "Load /skill:caveman. Locate target files, functions, callers, and signatures for `<ticket/issue>`. Inspect package.json and config files for exact test, lint, typecheck, and format commands. Report under 200 words."
+  - *Prompt*: "Before any work, read and follow: skill://caveman. Locate target files, functions, callers, and signatures for `<ticket/issue>`. Inspect package.json and config files for exact test, lint, typecheck, and format commands. Report under 200 words."
 - **Scout B (Domain & Prior Art)**:
-  - *Prompt*: "Load /skill:caveman. Read `CONTEXT.md`, relevant `docs/adr/`, and test fixtures in `tests/` for this feature area. Report canonical domain terms, constraints, and test patterns to emulate. Report under 200 words."
+  - *Prompt*: "Before any work, read and follow: skill://caveman. Read `CONTEXT.md`, relevant `docs/adr/`, and test fixtures in `tests/` for this feature area. Report canonical domain terms, constraints, and test patterns to emulate. Report under 200 words."
 
 **Completion criterion**: Orchestrator receives two structured markdown reports identifying target files, seams, and verification scripts.
 
@@ -92,7 +90,7 @@ Synthesize context into:
 
 #### Writer Subagent Prompt Template:
 ```markdown
-Load skills: /skill:tdd, /skill:ponytail, /skill:documenting-code, /skill:caveman.
+Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
 
 Target slice: <description of slice>
 Public seam: <interface contract>
@@ -134,9 +132,9 @@ Run verification commands using **execution-capable subagents** (never read-only
 Review the uncommitted diff against `HEAD` using two parallel subagents:
 
 - **Standards Subagent**:
-  - *Prompt*: "Load /skill:caveman. Review `git diff HEAD`. Check adherence to repo coding standards, `CONTEXT.md` vocabulary, ADR constraints, and Fowler code smells (feature envy, primitive obsession, speculative generality). Report findings with file:line citations under 200 words. If clean, report PASS."
+  - *Prompt*: "Before any work, read and follow: skill://caveman. Review `git diff HEAD`. Check adherence to repo coding standards, `CONTEXT.md` vocabulary, ADR constraints, and Fowler code smells (feature envy, primitive obsession, speculative generality). Report findings with file:line citations under 200 words. If clean, report PASS."
 - **Spec Subagent**:
-  - *Prompt*: "Load /skill:caveman. Compare `<originating issue/contract>` against `git diff HEAD`. Check for missing requirements, behavioral drift, or scope creep. Report findings with citations under 200 words. If clean, report PASS."
+  - *Prompt*: "Before any work, read and follow: skill://caveman. Compare `<originating issue/contract>` against `git diff HEAD`. Check for missing requirements, behavioral drift, or scope creep. Report findings with citations under 200 words. If clean, report PASS."
 
 If blockers are identified, return to Phase 3 for a surgical fix.
 
@@ -144,7 +142,7 @@ If blockers are identified, return to Phase 3 for a surgical fix.
 
 ---
 
-### Phase 6: Commit (Orchestrator)
+### Phase 6: Commit and push (Orchestrator)
 
 1. Verify working tree status:
    ```bash
@@ -158,6 +156,7 @@ If blockers are identified, return to Phase 3 for a surgical fix.
    ```bash
    git commit -m "<type>(<scope>): <summary> (closes #<issue>)"
    ```
-4. **Safety Guardrail**: Invocation of this skill authorizes local commits on the current branch. **Never push or sync to remotes** unless the user explicitly commands it.
+4. **Safety Guardrail**: Invocation of this skill authorizes local commits and push (no merges) on the current branch.
+5. Push to git
 
 **Completion criterion**: Working tree is clean and local commit is recorded on `git log -1`.
