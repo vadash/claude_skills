@@ -21,6 +21,8 @@ A comment worth keeping answers a _why_ the code can't:
 - ✅ `// Stripe sends the amount in cents; the rest of our system uses dollars`
 - ✅ `# Kept in sync with the enum in migrations/0042; update both`
 
+You can link github issue number or exact ADR if needed.
+
 ## Delete these
 
 ### Narration that restates the code
@@ -39,6 +41,8 @@ Never record how the code got here. That belongs in the commit message and PR de
 - ❌ `// per PR #1234` / `# as discussed` / `# changed because the old way broke`
 - ❌ `# AI: generated this helper` / `// agent: refactored`
 - ❌ `# TODO(2024-01): remove after migration` left in long after the migration
+- ❌ `§12 cases 15, 24` - no idea what it means
+- ❌ `handling candidate 3` - wtf is candidate? 
 
 ### Perishable measurements and current-state stamps
 
