@@ -19,8 +19,9 @@ Every dispatch prompt and every freebuff reviewer prompt first line is the role 
 
 Templates below start with `<header>`: substitute the role line.
 
+- **Agents**: select by `agent` field alone — `scout` is the read-only Scout, default `task` the Writer (full editing). NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
 - **Reports**: plain markdown in the response body, under 300-500 words. Clean result = `PASS`; findings cite `file:line`.
-- **Concurrency**: max 2 subagents. Writers require shell execution — never dispatch a Writer as a read-only scout. Exactly **1 Writer** at a time.
+- **Concurrency**: max 2 subagents. Exactly **1 Writer** at a time.
 
 ## Process
 
@@ -78,7 +79,7 @@ Failures: trivial fixes the Orchestrator does directly; else one Writer fixer wi
 
 ### Phase 5: Review (2 Reviewers via freebuff MCP)
 
-Read and follow `skill://code-review`; distill its checklist into the reviewers' lenses. Reviews run in the freebuff Instance — a separate agent with its own model. Reviews are two sequential `run_prompt` calls with `dir` = this repo absolute path on every call.
+Read and follow `skill://code-review`; distill its checklist into the reviewers' lenses. Reviews run in the freebuff Instance — a separate agent with its own model. The bundled `reviewer` subagent shares this harness — not a substitute. Reviews are two sequential `run_prompt` calls with `dir` = this repo absolute path on every call.
 
 ```markdown
 <header>

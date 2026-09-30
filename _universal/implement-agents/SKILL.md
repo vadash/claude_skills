@@ -19,8 +19,9 @@ Every dispatch prompt first line is the role skill header, copied verbatim:
 
 Templates below start with `<header>`: substitute the role line.
 
+- **Agents**: select by `agent` field alone — `scout` is the read-only Scout, `reviewer` the Reviewer, default `task` the Writer (full editing). NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
 - **Reports**: plain markdown in the response body, under 300 words. Clean result = `PASS`; findings cite `file:line`.
-- **Concurrency**: max 2 subagents. Writers require shell execution — never dispatch a Writer as a read-only scout. Exactly **1 Writer** at a time.
+- **Concurrency**: max 2 subagents. Exactly **1 Writer** at a time.
 
 ## Process
 
@@ -78,7 +79,7 @@ Failures: trivial fixes the Orchestrator does directly; else one Writer fixer wi
 
 ### Phase 5: Review (2 Reviewers)
 
-Now read and follow: `skill://code-review`. Dispatch two Reviewers on `git diff HEAD`
+Now read and follow: `skill://code-review`. Dispatch two `reviewer` subagents on `git diff HEAD`
 
 Blockers → Phase 3 for a surgical fix.
 
