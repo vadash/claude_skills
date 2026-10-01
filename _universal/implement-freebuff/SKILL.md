@@ -6,22 +6,9 @@ disable-model-invocation: true
 
 # Implement Agents
 
-The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents; the Orchestrator reads reports, never primary sources or skills.
+The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents
 
-## Dispatch contract
-
-Subagents start blank. `/skill:<name>` is composer-only syntax, inert inside dispatch prompts; a skill loads only when the subagent `read`s its `skill://<name>` URI.
-
-Every dispatch prompt and every freebuff reviewer prompt first line is the role skill header, copied verbatim:
-
-- **Scout / Reviewer**: `Before any work, read and follow: skill://caveman.`
-- **Writer**: `Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.`
-
-Templates below start with `<header>`: substitute the role line.
-
-- **Agents**: select by `agent` field alone — `scout` is the read-only Scout, default `task` the Writer (full editing). NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
-- **Reports**: plain markdown in the response body, under 300-500 words. Clean result = `PASS`; findings cite `file:line`.
-- **Concurrency**: max 2 subagents. Exactly **1 Writer** at a time.
+- **Agents**: select by `agent` field — `scout` is the read-only Scout, default `task` the Writer (full editing). NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
 
 ## Process
 
@@ -37,7 +24,7 @@ Decide before calling tools:
 Dispatch 2 parallel Scouts:
 
 - **Scout A — Codebase**: locate files, functions, callers, signatures for `<ticket>`; read `package.json` and configs for exact test, lint, typecheck, format commands.
-- **Scout B — Domain**: read `CONTEXT.md`, relevant `docs/adr/`, and this feature test fixtures; report canonical terms, constraints, and test patterns to emulate.
+- **Scout B — Domain**: read `CONTEXT.md`, relevant `docs/`, and this feature test fixtures; report canonical terms, constraints, and test patterns to emulate.
 
 **Done**: two reports naming target files, seams, and verification commands.
 
@@ -46,7 +33,7 @@ Dispatch 2 parallel Scouts:
 Synthesize:
 
 1. **Public seam** — the boundary where tests observe behavior without internals.
-2. **Slices** — 1–2 tracer-bullet vertical slices, each verifiable end-to-end.
+2. **Slices** — 1–3 tracer-bullet vertical slices, each verifiable end-to-end.
 
 Anti-drift: pass file boundaries and contracts into prompts; the Writer reads primary sources.
 
@@ -55,17 +42,19 @@ Anti-drift: pass file boundaries and contracts into prompts; the Writer reads pr
 Trivial edits: Orchestrator edits directly. Otherwise dispatch one Writer with:
 
 ```markdown
-<header>
 Target slice: <description>
 Public seam: <interface contract>
 Target files: <paths>
 Verification command: <targeted test command>
 
+Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman skills.
 1. TDD: failing test at the public seam first; run it to RED.
 2. Minimal code to GREEN: stdlib before custom, shortest working diff, no speculative abstractions.
 3. Self-documenting code; comments only for a non-obvious "why".
 4. Run the verification command. Report: diff summary + RED/GREEN proof.
 ```
+
+**Note**: you can dispatch up to 3 writers sequential, never parallel.
 
 **Done**: targeted test asserting the new behavior passes.
 
@@ -82,11 +71,11 @@ Failures: trivial fixes the Orchestrator does directly; else one Writer fixer wi
 Read and follow `skill://code-review`; distill its checklist into the reviewers' lenses. Reviews run in the freebuff Instance — a separate agent with its own model. The bundled `reviewer` subagent shares this harness — not a substitute. Reviews are two sequential `run_prompt` calls with `dir` = this repo absolute path on every call.
 
 ```markdown
-<header>
 Review the uncommitted work: run `git diff HEAD`.
+Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman skills.
 Spec: <Phase 2 requirement list>.
 Lens: <Reviewer A or B lens>.
-Report under 300-500 words: clean result = `PASS`; findings cite `file:line`.
+Report under 500 words: clean result = `PASS`; findings cite `file:line`.
 ```
 
 Blockers → Phase 3 for a surgical fix, then re-run both reviews.
