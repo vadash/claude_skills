@@ -1,6 +1,6 @@
 ---
-name: implement-freebuff
-description: "[SUB AGENTS + freebuff] Implement a piece of work based on a spec or set of tickets."
+name: implement-agents
+description: "[SUB AGENTS] Implement a piece of work based on a spec or set of tickets."
 disable-model-invocation: true
 ---
 
