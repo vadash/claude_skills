@@ -21,7 +21,7 @@ A comment worth keeping answers a _why_ the code can't:
 - ✅ `// Stripe sends the amount in cents; the rest of our system uses dollars`
 - ✅ `# Kept in sync with the enum in migrations/0042; update both`
 
-You can link github issue number or exact ADR if needed.
+Cite only what a reader of this repo can resolve without asking you: a GitHub issue number (`#13`) or an exact ADR (`ADR-007`). A section pointer like `spec §5` or `(§4)` resolves for nobody. Details under "Unresolvable references" below.
 
 ## Delete these
 
@@ -41,8 +41,16 @@ Never record how the code got here. That belongs in the commit message and PR de
 - ❌ `// per PR #1234` / `# as discussed` / `# changed because the old way broke`
 - ❌ `# AI: generated this helper` / `// agent: refactored`
 - ❌ `# TODO(2024-01): remove after migration` left in long after the migration
-- ❌ `§12 cases 15, 24` - no idea what it means
-- ❌ `handling candidate 3` - wtf is candidate? 
+- ❌ `handling candidate 3` - wtf is candidate?
+
+### Unresolvable references
+
+A citation has to work for someone who reads only this repo. Issue numbers and ADRs do; bare section pointers do not. `spec §5` fails twice: the reader can't tell which document, and section numbers drift when the document is edited. Citing a spec is emergency use: name the document and restate the rule it carries in the same sentence, because the comment must survive with no other file open. When the rule matters, the restatement is the comment and the citation is the bonus.
+
+- ❌ `# in source order per the provider contract (spec §5)` — which spec?
+- ❌ `// keeps its position, no reordering or clobbering (§4)` — § of what?
+- ✅ `# in source order per the provider contract; do not sort`
+- ✅ `# fuel spec: "re-reading a report never resets its age", so age counts from the scan that found it`
 
 ### Perishable measurements and current-state stamps
 
@@ -75,7 +83,7 @@ Delete it; the version history has it if it's needed again. Commented-out code i
 
 - A **why** that isn't obvious from the code: a workaround, a performance trade-off, a spec quirk, an ordering constraint.
 - A **warning** about a consequence that lives elsewhere: "changing this breaks the cache key", "callers rely on this being sorted".
-- A **pointer** to context a reader can't reconstruct from the repo: a link to the spec, ticket, or the reason a surprising value was chosen.
+- A **pointer** to context a reader can't reconstruct from the repo: a ticket number, an exact ADR, or the reason a surprising value was chosen. If you must cite a document, name it and restate the rule it carries.
 
 ## Style
 
