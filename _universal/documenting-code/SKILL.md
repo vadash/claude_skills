@@ -21,7 +21,26 @@ A comment worth keeping answers a _why_ the code can't:
 - ✅ `// Stripe sends the amount in cents; the rest of our system uses dollars`
 - ✅ `# Kept in sync with the enum in migrations/0042; update both`
 
-Cite only what a reader of this repo can resolve without asking you: a GitHub issue number (`#13`) or an exact ADR (`ADR-007`). A section pointer like `spec §5` or `(§4)` resolves for nobody. Details under "Unresolvable references" below.
+## The comment carries the rule, not a pointer
+
+Every token in a comment is paid again on every future read of the file. A pointer earns its place only when the reader will act on it: open the issue, follow the ADR. Otherwise the restated rule is the whole value and the pointer is pure cost.
+
+So: restate the rule in the comment and drop the pointer. Do not keep a citation as a "bonus" beside the restatement; that doubles the cost for zero added meaning.
+
+- ✅ `# in source order per the provider contract; do not sort`
+- ❌ `# in source order per the provider contract (docs/fuel-monitor-spec.md §5); do not sort` — the restatement already carries everything; the citation is paid forever
+- ✅ `# the provider owns the browser (issue #13)` — short, resolvable, and the reader may need the issue's policy discussion
+
+What you may reference, only when it adds something the comment can't:
+
+- A GitHub issue number (`#13`). Short, resolvable, often holds the debate behind a decision.
+- An exact ADR id (`ADR-007`). Lives in-repo, immutable, numbered.
+
+What you never reference:
+
+- **Spec sections.** Do not cite specs in comments. Restate the behavior instead; the reader needs the rule, not its address. Sole exception: the comment exists to prove compliance with a clause that cannot be paraphrased without loss, and someone will audit the code against the spec. Then use the short spoken name (`fuel spec §8`) and still restate the rule. Never a file path.
+- **File paths.** A path in a comment is 3-4 tokens of dead weight and rots on the first rename. If the document is worth naming, name it the way a person says it ("fuel spec").
+- **Bare section numbers** (`§8`, `§12 case 24`). Nobody knows which document they point to. When you meet one in existing code, do not repair it by naming the document; that just relabels the noise. Delete it, or replace it with the rule it stood for.
 
 ## Delete these
 
@@ -42,15 +61,6 @@ Never record how the code got here. That belongs in the commit message and PR de
 - ❌ `# AI: generated this helper` / `// agent: refactored`
 - ❌ `# TODO(2024-01): remove after migration` left in long after the migration
 - ❌ `handling candidate 3` - wtf is candidate?
-
-### Unresolvable references
-
-A citation has to work for someone who reads only this repo. Issue numbers and ADRs do; bare section pointers do not. `spec §5` fails twice: the reader can't tell which document, and section numbers drift when the document is edited. Citing a spec is emergency use: name the document and restate the rule it carries in the same sentence, because the comment must survive with no other file open. When the rule matters, the restatement is the comment and the citation is the bonus.
-
-- ❌ `# in source order per the provider contract (spec §5)` — which spec?
-- ❌ `// keeps its position, no reordering or clobbering (§4)` — § of what?
-- ✅ `# in source order per the provider contract; do not sort`
-- ✅ `# fuel spec: "re-reading a report never resets its age", so age counts from the scan that found it`
 
 ### Perishable measurements and current-state stamps
 
@@ -83,7 +93,7 @@ Delete it; the version history has it if it's needed again. Commented-out code i
 
 - A **why** that isn't obvious from the code: a workaround, a performance trade-off, a spec quirk, an ordering constraint.
 - A **warning** about a consequence that lives elsewhere: "changing this breaks the cache key", "callers rely on this being sorted".
-- A **pointer** to context a reader can't reconstruct from the repo: a ticket number, an exact ADR, or the reason a surprising value was chosen. If you must cite a document, name it and restate the rule it carries.
+- A **pointer** the reader will act on: an issue number or an exact ADR id. Nothing else; if the context matters, state it in the comment.
 
 ## Style
 
