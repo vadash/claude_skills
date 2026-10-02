@@ -38,7 +38,7 @@ What you may reference, only when it adds something the comment can't:
 
 What you never reference:
 
-- **Spec sections.** Do not cite specs in comments. Restate the behavior instead; the reader needs the rule, not its address. Sole exception: the comment exists to prove compliance with a clause that cannot be paraphrased without loss, and someone will audit the code against the spec. Then use the short spoken name (`fuel spec §8`) and still restate the rule. Never a file path.
+- **Spec sections.** Do not cite specs in comments. Restate the behavior instead; the reader needs the rule, not its address. Two exceptions: (1) the comment exists to prove compliance with a clause that cannot be paraphrased without loss, and someone will audit the code against the spec: then use the short spoken name (`fuel spec §8`) and still restate the rule, never a file path; (2) an acceptance-test title pinning a numbered clause of the spec, where the clause id (`§12 case 24`) is the audit key, not noise. Never a file path anywhere.
 - **File paths.** A path in a comment is 3-4 tokens of dead weight and rots on the first rename. If the document is worth naming, name it the way a person says it ("fuel spec").
 - **Bare section numbers** (`§8`, `§12 case 24`). Nobody knows which document they point to. When you meet one in existing code, do not repair it by naming the document; that just relabels the noise. Delete it, or replace it with the rule it stood for.
 
