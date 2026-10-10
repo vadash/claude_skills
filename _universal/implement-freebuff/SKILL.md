@@ -6,6 +6,10 @@ disable-model-invocation: true
 
 The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents
 
+- **Agents**: select by `agent` field — `scout` is the read-only Scout, default `task` the Writer (full editing). NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
+
+- If user spec located on github run tool READ on it `Read issue://<number>`. If it has root issue then read it too.
+
 # Process
 
 ## Phase 0: Cold vs Warm
