@@ -68,7 +68,9 @@ Failures: trivial fixes the Orchestrator does directly; else one Writer fixer wi
 
 ## Phase 5: Review (2 Reviewers via freebuff MCP)
 
-Read and follow `skill://code-review`; distill its checklist into the reviewers lenses. Reviews run in the freebuff Instance — a separate agent with its own model. The bundled `reviewer` subagent shares this harness — not a substitute. Reviews are two sequential `run_prompt` calls with `dir` = this repo absolute path on every call
+Check `git diff HEAD`, stage all relevant files, remove all temp or throwaway, update git ignore if needed.
+
+Then read and follow `skill://code-review`; distill its checklist into the reviewers lenses. Reviews run in the freebuff Instance — a separate agent with its own model. The bundled `reviewer` subagent shares this harness — not a substitute. Reviews are two sequential `run_prompt` calls with `dir` = this repo absolute path on every call
 
 ```markdown
 Review the uncommitted work: run `git diff HEAD`

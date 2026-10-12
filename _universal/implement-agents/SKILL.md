@@ -68,7 +68,9 @@ Failures: trivial fixes the Orchestrator does directly; else one Writer fixer wi
 
 ## Phase 5: Review (2 Reviewers)
 
-Now read and follow: `skill://code-review`. Dispatch two `reviewer` subagents on `git diff HEAD`
+Check `git diff HEAD`, stage all relevant files, remove all temp or throwaway, update git ignore if needed.
+
+Then read and follow: `skill://code-review`. Dispatch two `reviewer` subagents on `git diff HEAD`
 
 ```markdown
 Review the uncommitted work: run `git diff HEAD`.
