@@ -34,11 +34,25 @@ Dispatch 2 parallel Scouts (`scout` task):
 Synthesize:
 
 1. **Public seam** — the boundary where tests observe behavior without internals
-2. **Slices** — 1–3 tracer-bullet vertical slices, each verifiable end-to-end
+2. **Slices** — 1–3 tracer-bullet vertical slices, each verifiable end-to-end. **Green-complete**: each slice's file list carries every file the full suite needs at its boundary — fixtures, migrated tests. A slice only green together with its successor is not a boundary: merge or move files
+3. **Boundary plan** — one row per inter-slice boundary; dials set independently:
+
+   | Dial | Setting | Choose when |
+   |---|---|---|
+   | Writer | per slice | slices touch disjoint modules; the next writer re-reads little |
+   | Writer | one for all | the next writer re-reads most of the earlier diff |
+   | Review | per slice | drift risk high — open design inside the slice, weak spec; or review cheap |
+   | Review | once at end | spec exhaustive (authored this session), review blocking, diff fits one lens |
+   | Commit | per slice | slice green-complete |
+   | Commit | once, at last green boundary | slices only-green-together |
+
+   Unconditional: a **verify wall** after every writer — typecheck + full suite before the next dispatch. Mechanical checks never batch; only review and commits do. Boundaries buy error containment, paid in latency and review budget. User may override any dial at plan time
 
 Anti-drift: pass file boundaries and contracts into prompts; the Writer reads primary sources.
 
-## Phase 3: Write (1 Writer)
+**Done**: boundary plan exists — every commit row sits at a green boundary
+
+## Phase 3: Write (Writers per plan)
 
 Trivial edits: Orchestrator edits directly. Otherwise dispatch one Writer (general `task`) with:
 
@@ -55,9 +69,9 @@ Before any work, read and follow: skill://tdd, skill://ponytail, skill://documen
 4. Run the verification command. Report: diff summary + RED/GREEN proof
 ```
 
-**Note**: you can dispatch up to 3 writers sequential, never parallel
+**Note**: dispatch writers per the boundary plan — up to 3, sequential, never parallel. Run the verify wall after every writer
 
-**Done**: targeted test asserting the new behavior passes
+**Done**: targeted test green, wall green
 
 ## Phase 4: Verify (Orchestrator)
 
@@ -68,6 +82,8 @@ Failures: trivial fixes the Orchestrator does directly; else one Writer fixer wi
 **Done**: static checks and suite green
 
 ## Phase 5: Review (2 Reviewers via freebuff MCP)
+
+Cadence comes from the boundary plan: per-slice reviews run before that slice's commit; the end review runs once after the last wall. Review what is done so far — pass the diff range (`git diff <base>`) when slices already committed
 
 Check `git diff HEAD`, stage all relevant files, remove all temp or throwaway, update git ignore if needed.
 
@@ -90,6 +106,8 @@ Small blockers → edit directly -> phase 4 for tests
 **Done**: `PASS` from both reviewers
 
 ## Phase 6: Commit & push (Orchestrator)
+
+Commit at each planned boundary. Per-slice plans commit a slice as soon as its gate passes — before the next slice touches shared files, or staging can no longer split them. `closes #<issue>` rides the last commit
 
 ```bash
 git add -A
