@@ -8,8 +8,11 @@ The root session is the **Orchestrator**: coordination and context hygiene only.
 
 - **Agents**: select by `agent` field — `scout` is the read-only Scout, default `task` the Writer (full editing). NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
 - **Dispatch shape**: every `task` call is the batch variant — top-level `context` (shared goal + constraints, non-empty) + `tasks[]`, one item per agent (single agent = one-item array); each item needs `task` + `solutionSpace`, `agent` optional (default `task`).
-
 - If user spec located on github run tool READ on it `Read issue://<number>`. If it has root issue then read it too. Only read relevant issues.
+- Commit after each slice and after review done before next slice.
+
+Example structure, that you can adapt for each task:
+[Scouts (if cold)] -> Plan slices -> [Slice 1] -> commit -> [Review 1 if slice is big/complex] -> ... more slices ... -> Always finish with [Review]
 
 # Process
 
