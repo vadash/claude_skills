@@ -86,7 +86,7 @@ git commit -m "<type>(<scope>): <summary>"   # `closes #<issue>` on the run's la
 
 ### 3d Review the slice (every slice but the last)
 
-Review `<base>..HEAD` under [Review mechanics]. Both axes `PASS` → next slice. Otherwise fix (design or multi-site: Writer; mechanical: direct), rerun the wall, commit `fix(<scope>): address review findings`, next slice — no second review of that slice.
+Review `<base>..HEAD` under [Review mechanics](#review-mechanics). Both axes `PASS` → next slice. Otherwise fix (design or multi-site: Writer; mechanical: direct), rerun the wall, commit `fix(<scope>): address review findings`, next slice — no second review of that slice.
 
 **Done**: both axes `PASS`, or the fix commit is green.
 
@@ -128,8 +128,8 @@ Report under 400 words: clean = `PASS`; findings cite file:line and quote the hu
 
 Findings are judgement calls, not a score.
 
-**Freebuff mode**: the Instance replaces both `reviewer` subagents — a different model, no `skill://` access.
+**Freebuff mode**: the Instance replaces both `reviewer` subagents — a different model on its own allowance, with the same `skill://` skills.
 
 - One `freebuff_run` per axis in one turn, then one `freebuff_wait` each. The target is the session cwd's git root (no path argument); one Task owns the Instance at a time and only its owner session is answered (`not_owner` otherwise). Keep the tree untouched while Tasks run.
-- Prompt: the template above minus the `skill://` line, plus code-review's step-4 brief, the baseline, the spec, and the standards paths. End with: "Review only: run git, read, report; do not edit files or commit."
+- Prompt: the template above verbatim. End with: "Review only: run git, read, report; do not edit files or commit."
 - Any failure — no quota, a tool error (`busy`, `lock_busy`, `not_owner`), a missing tool, a `failed` verdict — reruns the unfinished axes (both when neither ran) with harness `reviewer` agents, then switches the rest of the run to harness mode. Note it in the report.
