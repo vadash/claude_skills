@@ -49,11 +49,31 @@ Synthesize:
 
 **Done**: plan names each slice's files, commit boundary, verification command, and review boundary.
 
+### Edit ownership (binding)
+
+Context economy is not a reason to self-implement; it is a reason to write the handoff.
+
+- **Writer owns first edits.** The first implementation of every slice — including the last,
+  end-reviewed slice — is dispatched to one Writer, even when the Orchestrator already holds
+  the design, and even for a change the Orchestrator considers trivial. Put the design in the
+  dispatch (`# Target`, files, signatures, acceptance); that is cheaper than doing the work.
+- **Review gates Orchestrator edits.** Once a reviewer has reported on the committed slice
+  (3d review, or Phase 4 review 1/2), the Orchestrator MAY apply the findings directly: small
+  fixes, commit amendments, and the resulting `fix(<scope>): address review findings` commit.
+  No review yet → no Orchestrator edits to the slice.
+- **Never edit between Writer and commit.** The slice's first edits and its commit boundary
+  are the Writer's output; the Orchestrator runs the wall, commit, then review.
+- **Orchestrator-only surfaces:** commit staging/messages, `.gitignore`, `.work/` cleanup, and
+  review dispatch. A one-line typo fix in those files is still a Writer edit if it touches
+  tracked source.
+- **Self-check before 3c:** if no Writer dispatch happened for this slice, stop and dispatch.
+  A slice committed without a Writer is a process failure, not a shortcut.
+
 ## Phase 3: Slice loop
 
 ### 3a Write
 
-Trivial edits: the Orchestrator edits directly. Otherwise dispatch one Writer (general `task`):
+First edits belong to the Writer: dispatch one Writer (general `task`) for every slice, whatever its size. The Orchestrator edits source, tests, docs, or build files directly only after a reviewer has reported on that slice (see Edit ownership).
 
 ```markdown
 Target slice: <description>
@@ -117,6 +137,8 @@ Report under 400 words: clean = `PASS`; findings cite file:line and quote the hu
 
 **Behaviour**: `PASS` from both axes → next slice. Findings → fix big blockers with one Writer, small ones directly → rerun the wall (3b) → commit the fixes (`fix(<scope>): address review findings`) → next slice. This is the slice's only review invocation.
 
+Findings may be fixed directly by the Orchestrator (this is the only point where it edits tracked files before a slice is complete); rerun the wall, then commit.
+
 **Done**: both axes `PASS`, or the fix commit is green.
 
 ## Phase 4: End review (at most two invocations)
@@ -124,6 +146,7 @@ Report under 400 words: clean = `PASS`; findings cite file:line and quote the hu
 The range is `<run base>...HEAD` and covers every commit of the run. Review 1 uses the same template and axis dispatch as 3d.
 
 - **Fixes** → wall → commit, as in 3d.
+- The end-reviewed (last) slice still gets its Writer for first edits; review 1/2 findings are the Orchestrator's to fix.
 - **Review 2** runs only after review 1 produced fixes. It is confirmation: re-check every review-1 finding against the fix commits and scan the fix diff. A finding there gets one fix, not a third invocation.
 - **No third invocation.** Unresolved findings are recorded verbatim for the final report; the run does not loop.
 
