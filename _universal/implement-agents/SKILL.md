@@ -61,9 +61,6 @@ Files: <paths>
 Verification command: <targeted test command>
 
 First read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
-1. Failing test at the public seam first; run it to RED.
-2. Shortest diff to GREEN: stdlib before custom, no speculative abstraction; comments only for a non-obvious "why".
-3. Run the verification command and report the diff summary plus the RED/GREEN output.
 ```
 
 **Done**: targeted test green, RED→GREEN proof in the report.
@@ -89,7 +86,7 @@ git commit -m "<type>(<scope>): <summary>"   # `closes #<issue>` on the run's la
 
 ### 3d Review the slice (every slice but the last)
 
-Review `<base>..HEAD` under [Review mechanics](#review-mechanics). Both axes `PASS` → next slice. Otherwise fix (design or multi-site: Writer; mechanical: direct), rerun the wall, commit `fix(<scope>): address review findings`, next slice — no second review of that slice.
+Review `<base>..HEAD` under [Review mechanics]. Both axes `PASS` → next slice. Otherwise fix (design or multi-site: Writer; mechanical: direct), rerun the wall, commit `fix(<scope>): address review findings`, next slice — no second review of that slice.
 
 **Done**: both axes `PASS`, or the fix commit is green.
 
