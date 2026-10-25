@@ -1,6 +1,6 @@
 ---
 name: issue-chain
-description: Orchestrate sequential implementation of one parent issue
+description: Orchestrate sequential implementation of one parent issue; optional `freebuff` first arg
 disable-model-invocation: true
 ---
 
@@ -8,18 +8,18 @@ disable-model-invocation: true
 
 You are the orchestrator. You never implement, never read source files for the work, never commit. Subagents do the work; you decompose, dispatch in strict sequence, verify, and decide when the chain stops. The value you add is context hygiene and gate discipline: each subagent starts blank and cannot see the previous one's work, so whatever it needs must be in its prompt.
 
-Invocation carries the parent issue, e.g. `issue-chain issue://15`.
+Invocation: `issue-chain [freebuff] issue://<N>`. The optional first word `freebuff` runs every ticket's reviews in the freebuff Instance; freebuff trouble falls back to harness reviewers inside `implement-agents` and never blocks the chain.
 
 ## Phase 0 — Discover the chain
 
-Find the parent's sub-issues. Try both sources; neither alone is trustworthy:
+Read the parent with the `read` tool: `issue://<N>` (`issue://<owner>/<repo>/<N>` for another repo). Then find its sub-issues. Try both sources; neither alone is trustworthy:
 
 1. `gh api repos/<owner>/<repo>/issues/<N>/sub_issues` — the GitHub sub-issue feature.
-2. Body-convention scan: `gh issue list --state open --json number,title` in the parent's repo, then read each candidate's body for a `Parent` section referencing `#<N>` (e.g. `## Parent` / `#15`).
+2. Body-convention scan: `gh issue list --state open --json number,title` in the parent's repo, then read each candidate's body for a `Parent` section referencing `#<N>` (e.g. `## Parent` / `#15`). Read bodies with the `read` tool, not `gh issue view`.
 
 The API can return `[]` while sub-issues exist (they may be linked only by the body convention); the body scan alone can miss feature-linked sub-issues. Union the two, drop closed issues.
 
-For every open sub-issue, read its full body — never work from memory of titles. Derive execution order from `Blocked by:` fields, not issue numbers. A ticket is dispatchable only when all of its blockers are closed issues inside the chain. If a blocker is open and *outside* the chain, stop before dispatching and say which ticket is blocked by what.
+For every open sub-issue, read the full body with `read issue://<N>` — never work from memory of titles. `gh issue view` is the fallback only when the URI fails. Derive execution order from `Blocked by:` fields, not issue numbers. A ticket is dispatchable only when all of its blockers are closed issues inside the chain. If a blocker is open and *outside* the chain, stop before dispatching and say which ticket is blocked by what.
 
 Zero open sub-issues → report that and stop. That is a valid, complete run.
 
@@ -38,11 +38,14 @@ For the first pending ticket, dispatch exactly one `task` subagent. Never parall
 Prompt template — self-contained, because the subagent shares nothing with you:
 
 ```markdown
-Run `skill://implement-agents do issue://<N>`.
+Read `skill://implement-agents` and follow it as its orchestrator.
+Mode: <agents | freebuff>
 
-Before any work, read `skill://implement-agents` and follow it as its orchestrator:
-cold-start scouting, seam/slices, one Writer, your own verification, two reviewers
-on `git diff HEAD`, then commit and push with a message closing the issue.
+Read the issue with the `read` tool: `issue://<N>`; `gh` only when that fails.
+Follow the skill end to end: spec fetch, cold-start scouting, seam/slices, one
+Writer, your own verification; per slice Write → wall → commit → two-axis review
+of the committed range; the last slice is end-reviewed; at most two end-review
+invocations; then push with a message closing the issue.
 
 # Goal
 <repo path; what this ticket is inside the chain; which sibling tickets already
@@ -61,6 +64,8 @@ state, and report BLOCKED with exactly what is missing and what you tried.
 
 End state: committed, pushed, tests green. Find exact test commands by scouting.
 ```
+
+Write `Mode: freebuff` only when the chain invocation carried `freebuff`; write `Mode: agents` otherwise. A freebuff failure is not a BLOCKED case — the skill falls back to harness reviewers. When a worker reports that fallback, send `Mode: agents` for every later ticket instead of retrying freebuff.
 
 While it runs, you wait — no other dispatches. On its result, go to Phase 3. Only after gates pass, mark the implement todo done and dispatch the next ticket.
 
@@ -86,8 +91,11 @@ Otherwise continue until every open sub-issue is implemented and verified. Final
 ## Anti-patterns
 
 - Trusting the GitHub sub-issues API alone and no-oping a real chain.
+- Fetching issue bodies with `gh issue view` when `read issue://<N>` works.
 - Ordering by issue number instead of `Blocked by` fields.
 - Parallel or speculative dispatch of later tickets.
 - Linking an issue in the dispatch prompt instead of restating its criteria.
 - Accepting a worker's "tests pass" without running them yourself.
+- Reporting a freebuff failure as BLOCKED; the skill falls back to harness reviewers.
+- Reviewing `git diff HEAD` after the worker committed; the range is `<base>...HEAD`.
 - Committing, editing source, or "quickly fixing" worker output yourself — corrective work goes to a subagent.

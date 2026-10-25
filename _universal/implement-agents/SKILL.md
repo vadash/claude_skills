@@ -1,13 +1,13 @@
 ---
 name: implement-agents
-description: "[SUB AGENTS | freebuff] Implement a spec or tickets: scout, slice, commit per slice, two-axis review. First arg `freebuff` runs reviews in the freebuff Instance."
+description: "[SUB AGENTS | freebuff] Implement a spec or tickets: scout, slice, commit per slice, two-axis review. First arg `freebuff` reviews in the freebuff Instance; a failure falls back to harness reviewers."
 disable-model-invocation: true
 ---
 
 Invocation: `/skill:implement-agents [freebuff] <spec | issue://N>`.
 
-- **Mode**: `freebuff` as the first word of the args sends reviews to the freebuff Instance — a different model, its own allowance. Every other phase is identical. All other args are spec text.
-- **Read as `skill://`** (a dispatch says "run implement-agents on issue://N"): default mode, spec from the dispatch prompt.
+- **Mode**: `freebuff` as the first word of the args sends reviews to the freebuff Instance — a different model, its own allowance. Every other phase is identical. All other args are spec text. A freebuff failure — no quota, a tool error, a `failed` verdict — falls back to harness reviewers for the rest of the run; it is not a blocker.
+- **Read as `skill://`** (a dispatch says "run implement-agents on issue://N"): the dispatch names the mode, default when it names none, and supplies the spec.
 
 The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents.
 
@@ -110,10 +110,10 @@ Report under 400 words: clean = `PASS`; findings cite file:line and quote the hu
 **Freebuff mode**: the freebuff Instance replaces the two `reviewer` subagents — a separate agent, a different model, no `skill://` access.
 
 - Submit both axes in one turn (`freebuff_run` twice), then drain with two `freebuff_wait` calls.
-- Target is the session cwd git root; there is no path parameter. Only the owning root session gets answers; subagents are refused `not_owner`.
+- Target is the session cwd git root; there is no path parameter. A session is answered only for Tasks it owns; a call on another session's Task is refused `not_owner`. One Task owns the Instance at a time.
 - Keep the tree clean and untouched while the Tasks run.
 - Prompt: the same template without the `skill://` line, plus the code-review step-4 brief for the axis, the baseline, the spec, and the standards paths. End with: "Review only: run git, read, report; do not edit files or commit."
-- A `failed` Task returns its Verdict and a screen excerpt: record it as an unresolved finding, never a `PASS`.
+- Any freebuff failure — no quota, a tool error such as `busy`, `lock_busy`, `not_owner`, a missing tool, or a `failed` verdict — reruns the unfinished axis (both when neither ran) with a harness `reviewer`, then switches the rest of the run to agents mode. Record the fallback in the final report; it is not a blocker.
 
 **Behaviour**: `PASS` from both axes → next slice. Findings → fix big blockers with one Writer, small ones directly → rerun the wall (3b) → commit the fixes (`fix(<scope>): address review findings`) → next slice. This is the slice's only review invocation.
 
