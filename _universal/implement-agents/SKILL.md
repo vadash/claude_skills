@@ -1,63 +1,58 @@
 ---
 name: implement-agents
-description: "[SUB AGENTS] Implement a piece of work based on a spec or set of tickets."
+description: "[SUB AGENTS | freebuff] Implement a spec or tickets: scout, slice, commit per slice, two-axis review. First arg `freebuff` runs reviews in the freebuff Instance."
 disable-model-invocation: true
 ---
 
-The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents
+Invocation: `/skill:implement-agents [freebuff] <spec | issue://N>`.
 
-- **Agents**: select by `agent` field — `scout` is the read-only Scout, default `task` the Writer (full editing). NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
-- **Dispatch shape**: every `task` call is the batch variant — top-level `context` (shared goal + constraints, non-empty) + `tasks[]`, one item per agent (single agent = one-item array); each item needs `task` + `solutionSpace`, `agent` optional (default `task`).
-- If user spec located on github run tool READ on it `Read issue://<number>`. If it has root issue then read it too. Only read relevant issues.
-- Commit after each slice and after review done before next slice.
+- **Mode**: `freebuff` as the first word of the args sends reviews to the freebuff Instance — a different model, its own allowance. Every other phase is identical. All other args are spec text.
+- **Read as `skill://`** (a dispatch says "run implement-agents on issue://N"): default mode, spec from the dispatch prompt.
 
-Example structure, that you can adapt for each task:
-[Scouts (if cold)] -> Plan slices -> [Slice 1] -> commit -> [Review 1 if slice is big/complex] -> ... more slices ... -> Always finish with [Review]
+The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents.
 
-# Process
+- **Agents**: pick by `agent` field — `scout` read-only, default `task` Writer, `reviewer` reviewer. NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
+- **Dispatch shape**: batch variant only — top-level `context` (shared goal + constraints, non-empty) + `tasks[]`, one item per agent (single agent = one-item array); each item needs `task` + `solutionSpace`.
+- **Spec**: chat brief, repo path, or `issue://<N>` — read the root issue too when the ticket has one, only relevant issues. The requirement list rides into every reviewer prompt.
+- Invoking this skill authorizes local commits and `git push` (no merges) on the current branch.
 
-## Phase 0: Cold vs Warm
+Flow: [Scouts if cold] → plan → per slice [Write → wall → commit → review] → end review → push → report.
 
-Decide before calling tools:
+## Phase 0: Preflight
 
-- **Warm** — target files, seams, and contracts already in this conversation (e.g. invoked right after `grill-with-docs`, `grilling`, `improve-codebase-architecture`, `to-spec`): skip Phase 1
-- **Cold** — invoked from a ticket reference or fresh session: run Phase 1
+- `git status --porcelain`: dirty tree → stop and report. The run must be attributable to its own commits.
+- `git rev-parse HEAD` → **run base**. The end review diffs from it.
+- **Warm** — target files, seams, and contracts already in this conversation (invoked after `grilling`, `grill-with-docs`, `to-spec`, or a detailed brief): skip Phase 1.
+- **Cold** — ticket reference or fresh session: run Phase 1.
 
-## Phase 1: Scout (Cold only)
+**Done**: clean tree, run base recorded, start branch known.
+
+## Phase 1: Scout (cold only)
 
 Dispatch 2 parallel Scouts (`scout` task):
 
-- **Scout A — Codebase**: locate files, functions, callers, signatures for `<ticket>`; read `package.json` and configs for exact test, lint, typecheck, format commands
-- **Scout B — Domain**: read `CONTEXT.md`, relevant `docs/`, and this feature test fixtures; report canonical terms, constraints, and test patterns to emulate
+- **Scout A — Codebase**: locate files, functions, callers, signatures for `<ticket>`; read `package.json` and configs for exact test, lint, typecheck, format commands; name the coding-standards docs (`CONTRIBUTING.md`, `CODING_STANDARDS.md`, `AGENTS.md`).
+- **Scout B — Domain**: read `CONTEXT.md`, relevant `docs/`, and this feature's test fixtures; report canonical terms, constraints, and test patterns to emulate.
 
-**Done**: two reports naming target files, seams, and verification commands
+**Done**: two reports naming target files, seams, standards docs, and verification commands.
 
-## Phase 2: Seam & Slices (Orchestrator)
+## Phase 2: Plan
 
 Synthesize:
 
-1. **Public seam** — the boundary where tests observe behavior without internals
-2. **Slices** — 1–3 tracer-bullet vertical slices, each verifiable end-to-end. **Green-complete**: each slice's file list carries every file the full suite needs at its boundary — fixtures, migrated tests. A slice only green together with its successor is not a boundary: merge or move files
-3. **Boundary plan** — one row per inter-slice boundary; dials set independently:
+1. **Public seam** — the boundary where tests observe behavior without internals.
+2. **Slices** — 1–3 tracer-bullet vertical slices, each verifiable end-to-end. **Green-complete**: each slice's file list carries every file the full suite needs at its boundary — fixtures, migrated tests. A slice only green together with its successor is not a boundary: merge or move files.
+3. **Plan rows** — per slice: files, verification command, commit message. The last slice is the end-review slice.
+4. **Review budget** — one review invocation per slice after its commit, except the last slice; the end review covers the last slice and the whole run. An invocation runs both axes (Standards, Spec).
+5. **Writers** — one fresh Writer per slice when slices touch disjoint modules; one Writer for all when the next re-reads most of the earlier diff. Pass file boundaries and contracts into prompts; the Writer reads primary sources.
 
-   | Dial | Setting | Choose when |
-   |---|---|---|
-   | Writer | per slice | slices touch disjoint modules; the next writer re-reads little |
-   | Writer | one for all | the next writer re-reads most of the earlier diff |
-   | Review | per slice | drift risk high — open design inside the slice, weak spec; or review cheap |
-   | Review | once at end | spec exhaustive (authored this session), review blocking, diff fits one lens |
-   | Commit | per slice | slice green-complete |
-   | Commit | once, at last green boundary | slices only-green-together |
+**Done**: plan names each slice's files, commit boundary, verification command, and review boundary.
 
-   Unconditional: a **verify wall** after every writer — typecheck + full suite before the next dispatch. Mechanical checks never batch; only review and commits do. Boundaries buy error containment, paid in latency and review budget. User may override any dial at plan time
+## Phase 3: Slice loop
 
-Anti-drift: pass file boundaries and contracts into prompts; the Writer reads primary sources.
+### 3a Write
 
-**Done**: boundary plan exists — every commit row sits at a green boundary
-
-## Phase 3: Write (Writers per plan)
-
-Trivial edits: Orchestrator edits directly. Otherwise dispatch one Writer (general `task`) with:
+Trivial edits: the Orchestrator edits directly. Otherwise dispatch one Writer (general `task`):
 
 ```markdown
 Target slice: <description>
@@ -65,59 +60,81 @@ Public seam: <interface contract>
 Target files: <paths>
 Verification command: <targeted test command>
 
-Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman skills
-1. TDD: failing test at the public seam first; run it to RED
-2. Minimal code to GREEN: stdlib before custom, shortest working diff, no speculative abstractions
-3. Self-documenting code; comments only for a non-obvious "why"
-4. Run the verification command. Report: diff summary + RED/GREEN proof
+Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
+1. TDD: failing test at the public seam first; run it to RED.
+2. Minimal code to GREEN: stdlib before custom, shortest working diff, no speculative abstractions.
+3. Self-documenting code; comments only for a non-obvious "why".
+4. Run the verification command. Report the diff summary plus RED/GREEN proof.
 ```
 
-**Note**: dispatch writers per the boundary plan — up to 3, sequential, never parallel. Run the verify wall after every writer
+Writers run sequentially, never parallel.
 
-**Done**: targeted test green, wall green
+**Done**: targeted test green, RED/GREEN proof in the report.
 
-## Phase 4: Verify (Orchestrator)
+### 3b Wall
 
-Run typecheck, lint, format. Skip if a pre-commit hook already runs them (Scout A reports this). Then run full regression suite
+Run typecheck, lint, and format, then the full regression suite. When a pre-commit hook already runs the static checks, run the suite only.
 
-Failures: trivial fixes the Orchestrator does directly; else one Writer fixer with the failure output
+Failures: trivial fixes the Orchestrator does directly; otherwise one Writer fixer with the failure output.
 
-**Done**: static checks and suite green
+**Done**: static checks and the full suite green.
 
-## Phase 5: Review (2 Reviewers)
+### 3c Commit
 
-Cadence comes from the boundary plan: per-slice reviews run before that slice's commit; the end review runs once after the last wall. Review what is done so far — pass the diff range (`git diff <base>`) when slices already committed
-
-Check `git diff HEAD`, stage all relevant files, remove all temp or throwaway, update git ignore if needed.
-
-Then read and follow `skill://code-review`; distill its checklist into the reviewers lenses. Dispatch two `reviewer` subagents on `git diff HEAD`
-
-```markdown
-Review the uncommitted work: run `git diff HEAD`
-Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman skills
-Spec: <Phase 2 requirement list>
-Lens: <Reviewer A or B lens>
-Report under 500 words: clean result = `PASS`; findings cite `file:line`
-```
-
-### Next
-
-Big blockers → phase 3 for a surgical fix → rerun failed review (if only 1 failed rerun that one)
-
-Small blockers → edit directly -> phase 4 for tests
-
-**Done**: `PASS` from both reviewers
-
-## Phase 6: Commit & push (Orchestrator)
-
-Commit at each planned boundary. Per-slice plans commit a slice as soon as its gate passes — before the next slice touches shared files, or staging can no longer split them. `closes #<issue>` rides the last commit
+Remove temp and throwaway files; update `.gitignore` when needed. Record `git rev-parse HEAD` as **`<base>`** for this slice. Stage the slice's files by path, then check `git status` — `git add -A` only when the tree holds nothing unrelated.
 
 ```bash
-git add -A
-git commit -m "<type>(<scope>): <summary> (closes #<issue>)"
-git push
+git add <slice paths>
+git commit -m "<type>(<scope>): <summary>"
 ```
 
-Invoking this skill authorizes local commits and push (no merges) on the current branch
+`closes #<issue>` rides the run's last commit.
 
-**Completion criterion**: Working tree is clean and local commit is recorded on `git log -1`
+**Done**: the slice is one commit on `git log -1`; working tree clean.
+
+### 3d Slice review (every slice but the last)
+
+Review the committed range: `git diff <base>...HEAD` and `git log <base>..HEAD --oneline`. Read `skill://code-review` and follow its steps 1–5 as the Orchestrator; the spec is the Phase 2 requirement list, so skip its issue-tracker lookup. Dispatch its two axes, Standards and Spec, as one parallel batch. Paste its smell baseline verbatim into both prompts, so each axis prompt is self-contained.
+
+```markdown
+Review the committed range <base>..HEAD in <repo>.
+Run: git log <base>..HEAD --oneline; git diff <base>...HEAD
+Read and follow skill://code-review. Axis: <Standards | Spec>.
+Standards sources: <repo standards file paths>.
+<full smell baseline from skill://code-review>
+Spec: <Phase 2 requirement list>
+Report under 400 words: clean = `PASS`; findings cite file:line and quote the hunk or standard.
+```
+
+**Freebuff mode**: the freebuff Instance replaces the two `reviewer` subagents — a separate agent, a different model, no `skill://` access.
+
+- Submit both axes in one turn (`freebuff_run` twice), then drain with two `freebuff_wait` calls.
+- Target is the session cwd git root; there is no path parameter. Only the owning root session gets answers; subagents are refused `not_owner`.
+- Keep the tree clean and untouched while the Tasks run.
+- Prompt: the same template without the `skill://` line, plus the code-review step-4 brief for the axis, the baseline, the spec, and the standards paths. End with: "Review only: run git, read, report; do not edit files or commit."
+- A `failed` Task returns its Verdict and a screen excerpt: record it as an unresolved finding, never a `PASS`.
+
+**Behaviour**: `PASS` from both axes → next slice. Findings → fix big blockers with one Writer, small ones directly → rerun the wall (3b) → commit the fixes (`fix(<scope>): address review findings`) → next slice. This is the slice's only review invocation.
+
+**Done**: both axes `PASS`, or the fix commit is green.
+
+## Phase 4: End review (at most two invocations)
+
+The range is `<run base>...HEAD` and covers every commit of the run. Review 1 uses the same template and axis dispatch as 3d.
+
+- **Fixes** → wall → commit, as in 3d.
+- **Review 2** runs only after review 1 produced fixes. It is confirmation: re-check every review-1 finding against the fix commits and scan the fix diff. A finding there gets one fix, not a third invocation.
+- **No third invocation.** Unresolved findings are recorded verbatim for the final report; the run does not loop.
+
+**Done**: both axes `PASS` on the last invocation, or every remaining finding has a fix commit and a report line.
+
+## Phase 5: Push and report
+
+```bash
+git push
+git status -sb
+```
+
+Final report: one row per slice — slice, commit hash, review result, test evidence. Then the unresolved findings, verbatim.
+
+**Completion criterion**: working tree clean, branch synced with origin, `git log --oneline <run base>..HEAD` shows the slice commits.
