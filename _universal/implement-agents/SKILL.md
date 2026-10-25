@@ -1,164 +1,138 @@
 ---
 name: implement-agents
-description: "[SUB AGENTS | freebuff] Implement a spec or tickets: scout, slice, commit per slice, two-axis review. First arg `freebuff` reviews in the freebuff Instance; a failure falls back to harness reviewers."
+description: "Implement a spec or issue as reviewed, committed slices. First arg `freebuff` sends reviews to the freebuff Instance."
 disable-model-invocation: true
 ---
 
 Invocation: `/skill:implement-agents [freebuff] <spec | issue://N>`.
 
-- **Mode**: `freebuff` as the first word of the args sends reviews to the freebuff Instance — a different model, its own allowance. Every other phase is identical. All other args are spec text. A freebuff failure — no quota, a tool error, a `failed` verdict — falls back to harness reviewers for the rest of the run; it is not a blocker.
-- **Read as `skill://`** (a dispatch says "run implement-agents on issue://N"): the dispatch names the mode, default when it names none, and supplies the spec.
+`freebuff` as the first arg sends reviews to the freebuff Instance — another model, its own allowance; every other phase is identical, and a freebuff failure never blocks (see Review mechanics). Another skill dispatching here names the mode (default: harness) and supplies the spec. Invoking this skill authorizes local commits and `git push` (never a merge) on the current branch.
 
 The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents.
 
-- **Agents**: pick by `agent` field — `scout` read-only, default `task` Writer, `reviewer` reviewer. NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
-- **Dispatch shape**: batch variant only — top-level `context` (shared goal + constraints, non-empty) + `tasks[]`, one item per agent (single agent = one-item array); each item needs `task` + `solutionSpace`.
-- **Spec**: chat brief, repo path, or `issue://<N>`. Phase 0 fetches it. The requirement list rides into every reviewer prompt.
-- Invoking this skill authorizes local commits and `git push` (no merges) on the current branch.
+Dispatch through `task` as one batch per phase: top-level `context` (shared goal and constraints) plus `tasks[]`, each item with `task` and `solutionSpace`; `scout` reads, `task` writes, `reviewer` reviews. Never pass `tools` — it whitelists eval-kernel tools and strips the native set.
 
-Flow: [Scouts if cold] → plan → per slice [Write → wall → commit → review] → end review → push → report.
+Flow: [Scout if cold] → Plan → per slice [Write → Wall → Commit → Review] → end review → push → report.
 
 ## Phase 0: Preflight
 
-- `git status --porcelain`: dirty tree → stop and report. The run must be attributable to its own commits.
-- `git rev-parse HEAD` → **run base**. The end review diffs from it.
-- **Spec**: fetch `issue://<N>` — or `issue://<owner>/<repo>/<N>` for another repo — with the `read` tool; read the root issue too when the ticket has one. `gh` is the fallback only when the URI fails. Distill the requirement list.
-- **Warm** — target files, seams, and contracts already in this conversation (invoked after `grilling`, `grill-with-docs`, `to-spec`, or a detailed brief): skip Phase 1.
-- **Cold** — ticket reference or fresh session: run Phase 1.
+- `git status --porcelain` dirty → stop; the run must own every commit it reports.
+- `git rev-parse HEAD` → **run base**; the end review diffs from it. Stay on the current branch.
+- **Spec**: `read` `issue://<N>` (or `issue://<owner>/<repo>/<N>`), plus the root issue when the ticket has a parent; `gh` only if the URI fails. Distill **R1…Rn** — the list every reviewer gets.
+- A spec gap that changes the design → one question before Phase 2; a small one → take the boring option, report it.
+- **Warm** (design already in this conversation, e.g. after `grilling` or `to-spec`) → skip Phase 1; **cold** (ticket reference, fresh session) → run it.
 
-**Done**: clean tree, run base recorded, requirement list distilled, start branch known.
+**Done**: clean tree, run base recorded, numbered requirement list distilled.
 
 ## Phase 1: Scout (cold only)
 
-Dispatch 2 parallel Scouts (`scout` task):
+One batch, two `scout` tasks:
 
-- **Scout A — Codebase**: locate files, functions, callers, signatures for `<ticket>`; read `package.json` and configs for exact test, lint, typecheck, format commands; name the coding-standards docs (`CONTRIBUTING.md`, `CODING_STANDARDS.md`, `AGENTS.md`).
-- **Scout B — Domain**: read `CONTEXT.md`, relevant `docs/`, and this feature's test fixtures; report canonical terms, constraints, and test patterns to emulate.
+- **Codebase**: files, functions, callers, signatures for `<ticket>`; exact test, lint, typecheck, and format commands from `package.json` and configs; paths of the standards docs (`CONTRIBUTING.md`, `AGENTS.md`).
+- **Domain**: canonical terms and constraints from `CONTEXT.md` and `docs/`; test fixtures and the patterns to emulate.
 
-**Done**: two reports naming target files, seams, standards docs, and verification commands.
+**Done**: target files, seams, standards paths, and verification commands named.
 
 ## Phase 2: Plan
 
-Synthesize:
+1. **Public seam** — where tests observe behavior without internals.
+2. **Slices** — 1–3 tracer bullets, each green end-to-end, each with its files, verification command, and commit message. A slice's file list carries every file the suite needs at its boundary; a slice that needs its successor to go green is not a boundary — merge or move files.
+3. **Writers**: fresh per slice when slices touch disjoint modules, one throughout when each re-reads the previous diff. Boundaries and contracts go in the dispatch.
+4. **Reviews**: one after each slice commit except the last — the end review covers the last slice and the run.
 
-1. **Public seam** — the boundary where tests observe behavior without internals.
-2. **Slices** — 1–3 tracer-bullet vertical slices, each verifiable end-to-end. **Green-complete**: each slice's file list carries every file the full suite needs at its boundary — fixtures, migrated tests. A slice only green together with its successor is not a boundary: merge or move files.
-3. **Plan rows** — per slice: files, verification command, commit message. The last slice is the end-review slice.
-4. **Review budget** — one review invocation per slice after its commit, except the last slice; the end review covers the last slice and the whole run. An invocation runs both axes (Standards, Spec).
-5. **Writers** — one fresh Writer per slice when slices touch disjoint modules; one Writer for all when the next re-reads most of the earlier diff. Pass file boundaries and contracts into prompts; the Writer reads primary sources.
+**Done**: every slice has files, a commit boundary, a verification command, and a review point.
 
-**Done**: plan names each slice's files, commit boundary, verification command, and review boundary.
+### Edit ownership
 
-### Edit ownership (binding)
+The Writer owns first edits — every slice, the end-reviewed one included, even when the Orchestrator already holds the design. Context economy is why the handoff is written, not a reason to self-implement. No Writer dispatch for a slice → stop before 3c and dispatch.
 
-Context economy is not a reason to self-implement; it is a reason to write the handoff.
-
-- **Writer owns first edits.** The first implementation of every slice — including the last,
-  end-reviewed slice — is dispatched to one Writer, even when the Orchestrator already holds
-  the design, and even for a change the Orchestrator considers trivial. Put the design in the
-  dispatch (`# Target`, files, signatures, acceptance); that is cheaper than doing the work.
-- **Review gates Orchestrator edits.** Once a reviewer has reported on the committed slice
-  (3d review, or Phase 4 review 1/2), the Orchestrator MAY apply the findings directly: small
-  fixes, commit amendments, and the resulting `fix(<scope>): address review findings` commit.
-  No review yet → no Orchestrator edits to the slice.
-- **Never edit between Writer and commit.** The slice's first edits and its commit boundary
-  are the Writer's output; the Orchestrator runs the wall, commit, then review.
-- **Orchestrator-only surfaces:** commit staging/messages, `.gitignore`, `.work/` cleanup, and
-  review dispatch. A one-line typo fix in those files is still a Writer edit if it touches
-  tracked source.
-- **Self-check before 3c:** if no Writer dispatch happened for this slice, stop and dispatch.
-  A slice committed without a Writer is a process failure, not a shortcut.
+After that, the Orchestrator touches tracked files only for a **mechanical** fix (stateable in one line: format, import, typo, lint nit), for findings from a review of that slice once a reviewer has reported, or to stage, commit, edit `.gitignore`, clean `.work/`, dispatch reviews. No design work, no first implementation between Writer and commit.
 
 ## Phase 3: Slice loop
 
 ### 3a Write
 
-First edits belong to the Writer: dispatch one Writer (general `task`) for every slice, whatever its size. The Orchestrator edits source, tests, docs, or build files directly only after a reviewer has reported on that slice (see Edit ownership).
+One Writer (`task`) per slice, sequentially — never in parallel.
 
 ```markdown
 Target slice: <description>
 Public seam: <interface contract>
-Target files: <paths>
+Files: <paths>
 Verification command: <targeted test command>
 
-Before any work, read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
-1. TDD: failing test at the public seam first; run it to RED.
-2. Minimal code to GREEN: stdlib before custom, shortest working diff, no speculative abstractions.
-3. Self-documenting code; comments only for a non-obvious "why".
-4. Run the verification command. Report the diff summary plus RED/GREEN proof.
+First read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
+1. Failing test at the public seam first; run it to RED.
+2. Shortest diff to GREEN: stdlib before custom, no speculative abstraction; comments only for a non-obvious "why".
+3. Run the verification command and report the diff summary plus the RED/GREEN output.
 ```
 
-Writers run sequentially, never parallel.
-
-**Done**: targeted test green, RED/GREEN proof in the report.
+**Done**: targeted test green, RED→GREEN proof in the report.
 
 ### 3b Wall
 
-Run typecheck, lint, and format, then the full regression suite. When a pre-commit hook already runs the static checks, run the suite only.
+**Wall** = typecheck, lint, format, then the full suite, using the commands Phase 1 found (a warm run takes them from the repo's scripts or the brief); when a pre-commit hook covers the static checks, the suite alone. No suite in the repo → say so and rely on the targeted test.
 
-Failures: trivial fixes the Orchestrator does directly; otherwise one Writer fixer with the failure output.
+Fix and rerun: a mechanical fix the Orchestrator makes itself, anything else one Writer fixer with the failure output.
 
 **Done**: static checks and the full suite green.
 
 ### 3c Commit
 
-Remove temp and throwaway files; update `.gitignore` when needed. Record `git rev-parse HEAD` as **`<base>`** for this slice. Stage the slice's files by path, then check `git status` — `git add -A` only when the tree holds nothing unrelated.
+Clear temp files, update `.gitignore` if needed. `HEAD` before this commit is the slice's review **base**. Stage by path, then check `git status` — `git add -A` only when the tree holds nothing unrelated.
 
 ```bash
 git add <slice paths>
-git commit -m "<type>(<scope>): <summary>"
+git commit -m "<type>(<scope>): <summary>"   # `closes #<issue>` on the run's last commit
 ```
 
-`closes #<issue>` rides the run's last commit.
+**Done**: one commit, working tree clean, base recorded.
 
-**Done**: the slice is one commit on `git log -1`; working tree clean.
+### 3d Review the slice (every slice but the last)
 
-### 3d Slice review (every slice but the last)
-
-Review the committed range: `git diff <base>...HEAD` and `git log <base>..HEAD --oneline`. Read `skill://code-review` and follow its steps 1–5 as the Orchestrator; the spec is the Phase 2 requirement list, so skip its issue-tracker lookup. Dispatch its two axes, Standards and Spec, as one parallel batch. Paste its smell baseline verbatim into both prompts, so each axis prompt is self-contained.
-
-```markdown
-Review the committed range <base>..HEAD in <repo>.
-Run: git log <base>..HEAD --oneline; git diff <base>...HEAD
-Read and follow skill://code-review. Axis: <Standards | Spec>.
-Standards sources: <repo standards file paths>.
-<full smell baseline from skill://code-review>
-Spec: <Phase 2 requirement list>
-Report under 400 words: clean = `PASS`; findings cite file:line and quote the hunk or standard.
-```
-
-**Freebuff mode**: the freebuff Instance replaces the two `reviewer` subagents — a separate agent, a different model, no `skill://` access.
-
-- Submit both axes in one turn (`freebuff_run` twice), then drain with two `freebuff_wait` calls.
-- Target is the session cwd git root; there is no path parameter. A session is answered only for Tasks it owns; a call on another session's Task is refused `not_owner`. One Task owns the Instance at a time.
-- Keep the tree clean and untouched while the Tasks run.
-- Prompt: the same template without the `skill://` line, plus the code-review step-4 brief for the axis, the baseline, the spec, and the standards paths. End with: "Review only: run git, read, report; do not edit files or commit."
-- Any freebuff failure — no quota, a tool error such as `busy`, `lock_busy`, `not_owner`, a missing tool, or a `failed` verdict — reruns the unfinished axis (both when neither ran) with a harness `reviewer`, then switches the rest of the run to agents mode. Record the fallback in the final report; it is not a blocker.
-
-**Behaviour**: `PASS` from both axes → next slice. Findings → fix big blockers with one Writer, small ones directly → rerun the wall (3b) → commit the fixes (`fix(<scope>): address review findings`) → next slice. This is the slice's only review invocation.
-
-Findings may be fixed directly by the Orchestrator (this is the only point where it edits tracked files before a slice is complete); rerun the wall, then commit.
+Review `<base>..HEAD` under [Review mechanics](#review-mechanics). Both axes `PASS` → next slice. Otherwise fix (design or multi-site: Writer; mechanical: direct), rerun the wall, commit `fix(<scope>): address review findings`, next slice — no second review of that slice.
 
 **Done**: both axes `PASS`, or the fix commit is green.
 
 ## Phase 4: End review (at most two invocations)
 
-The range is `<run base>...HEAD` and covers every commit of the run. Review 1 uses the same template and axis dispatch as 3d.
+Range `<run base>..HEAD` — every commit of the run. Review 1 is the same two-axis invocation; fixes → wall → commit as in 3d.
 
-- **Fixes** → wall → commit, as in 3d.
-- The end-reviewed (last) slice still gets its Writer for first edits; review 1/2 findings are the Orchestrator's to fix.
-- **Review 2** runs only after review 1 produced fixes. It is confirmation: re-check every review-1 finding against the fix commits and scan the fix diff. A finding there gets one fix, not a third invocation.
-- **No third invocation.** Unresolved findings are recorded verbatim for the final report; the run does not loop.
+**Review 2** runs only after review 1 produced fixes: re-check each review-1 finding against the fix commits, scan the fix diff. A finding here gets one fix, not a third invocation; whatever stays open is recorded verbatim in the report.
 
-**Done**: both axes `PASS` on the last invocation, or every remaining finding has a fix commit and a report line.
+**Done**: both axes `PASS` on the last invocation, or every open finding has a fix commit and a report line.
 
 ## Phase 5: Push and report
 
 ```bash
-git push
+git push          # no upstream → git push -u origin HEAD
 git status -sb
 ```
 
-Final report: one row per slice — slice, commit hash, review result, test evidence. Then the unresolved findings, verbatim.
+One row per slice, then the open findings and any freebuff fallback:
 
-**Completion criterion**: working tree clean, branch synced with origin, `git log --oneline <run base>..HEAD` shows the slice commits.
+| Slice | Commit | Review | Tests |
+|---|---|---|---|
+
+**Done**: tree clean, branch synced, `git log --oneline <run base>..HEAD` shows exactly the slice commits.
+
+## Review mechanics
+
+Run `skill://code-review` steps 1–5 as the Orchestrator, skipping its issue-tracker lookup: the spec is the R-list. Dispatch Standards and Spec as one parallel batch, each prompt self-contained with the smell baseline pasted verbatim.
+
+```markdown
+Review the committed range <base>..HEAD in <repo>.
+Run: git log <base>..HEAD --oneline; git diff <base>...HEAD
+Read and follow skill://code-review. Axis: <Standards | Spec>.
+Standards sources: <repo standards paths>
+<full smell baseline from skill://code-review>
+Spec: <R1…Rn>
+Report under 400 words: clean = `PASS`; findings cite file:line and quote the hunk or standard.
+```
+
+Findings are judgement calls, not a score.
+
+**Freebuff mode**: the Instance replaces both `reviewer` subagents — a different model, no `skill://` access.
+
+- One `freebuff_run` per axis in one turn, then one `freebuff_wait` each. The target is the session cwd's git root (no path argument); one Task owns the Instance at a time and only its owner session is answered (`not_owner` otherwise). Keep the tree untouched while Tasks run.
+- Prompt: the template above minus the `skill://` line, plus code-review's step-4 brief, the baseline, the spec, and the standards paths. End with: "Review only: run git, read, report; do not edit files or commit."
+- Any failure — no quota, a tool error (`busy`, `lock_busy`, `not_owner`), a missing tool, a `failed` verdict — reruns the unfinished axes (both when neither ran) with harness `reviewer` agents, then switches the rest of the run to harness mode. Note it in the report.
