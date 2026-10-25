@@ -13,7 +13,7 @@ The root session is the **Orchestrator**: coordination and context hygiene only.
 
 - **Agents**: pick by `agent` field — `scout` read-only, default `task` Writer, `reviewer` reviewer. NEVER pass `tools` on a dispatch: it whitelists eval-kernel `@tool`s and strips the native set.
 - **Dispatch shape**: batch variant only — top-level `context` (shared goal + constraints, non-empty) + `tasks[]`, one item per agent (single agent = one-item array); each item needs `task` + `solutionSpace`.
-- **Spec**: chat brief, repo path, or `issue://<N>` — read the root issue too when the ticket has one, only relevant issues. The requirement list rides into every reviewer prompt.
+- **Spec**: chat brief, repo path, or `issue://<N>`. Phase 0 fetches it. The requirement list rides into every reviewer prompt.
 - Invoking this skill authorizes local commits and `git push` (no merges) on the current branch.
 
 Flow: [Scouts if cold] → plan → per slice [Write → wall → commit → review] → end review → push → report.
@@ -22,10 +22,11 @@ Flow: [Scouts if cold] → plan → per slice [Write → wall → commit → rev
 
 - `git status --porcelain`: dirty tree → stop and report. The run must be attributable to its own commits.
 - `git rev-parse HEAD` → **run base**. The end review diffs from it.
+- **Spec**: fetch `issue://<N>` — or `issue://<owner>/<repo>/<N>` for another repo — with the `read` tool; read the root issue too when the ticket has one. `gh` is the fallback only when the URI fails. Distill the requirement list.
 - **Warm** — target files, seams, and contracts already in this conversation (invoked after `grilling`, `grill-with-docs`, `to-spec`, or a detailed brief): skip Phase 1.
 - **Cold** — ticket reference or fresh session: run Phase 1.
 
-**Done**: clean tree, run base recorded, start branch known.
+**Done**: clean tree, run base recorded, requirement list distilled, start branch known.
 
 ## Phase 1: Scout (cold only)
 
