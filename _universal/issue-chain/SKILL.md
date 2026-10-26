@@ -113,15 +113,16 @@ Committing, amending, resetting, staging, or editing tracked files is not —
 never in the orchestrator.
 
 Green → mark the todo done, set `<base>` to `HEAD`, dispatch the next ticket.
-Red → Phase 3. No tests, lint, or smoke here.
 
-One red case is not a failure: a clean tree, no new commit, and a worker report
-saying the ticket was already satisfied (a code path that landed with an earlier
-ticket, or a ticket someone did by hand). Retrying cannot fix that, and the
-queue order says nothing about it, so record the ticket as `already satisfied` with
-the worker's sentence as evidence, keep `<base>` where it is, and move on. Judge
-it by whether the tree got *dirtier*: leftovers or a partial commit mean the work
-started, and that goes to Phase 3.
+Two reds never reach Phase 3. Rewritten history stops the chain (above). A clean
+tree with no new commit and a worker report saying the ticket was already
+satisfied — a code path that landed with an earlier ticket, or one someone did by
+hand — is not a failure either: retrying cannot fix it, so record it as `already
+satisfied` with the worker's sentence as evidence, keep `<base>` where it is, and
+move on. Judge it by whether the tree got *dirtier*: leftovers or a partial commit
+mean the work did start, and that is a real red.
+
+Everything else → Phase 3. No tests, lint, or smoke here.
 
 ## Phase 3 — Recover a ticket
 
