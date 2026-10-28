@@ -8,13 +8,13 @@ Invocation: `/skill:implement-agents [freebuff] <spec | issue://N>`.
 
 `freebuff` as the first arg sends reviews to the freebuff Instance — another model, its own allowance; every other phase is identical, and a freebuff failure never blocks (see Review mechanics). Another skill dispatching here names the mode (default: harness) and supplies the spec. Invoking this skill authorizes local commits and `git push` (never a merge) on the current branch.
 
-The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents.
+The root session is the **Orchestrator**: coordination and context hygiene only. Source reading, diffs, and long logs stay in subagents. Each (sub)phase has tags [YOU] aka orchestrator, this thread. Or [AGENTS] that means you need to spawn sub agents.
 
 Dispatch through `task` as one batch per phase: top-level `context` (shared goal and constraints) plus `tasks[]`, each item with `task` and `solutionSpace`; `scout` reads, `task` writes, `reviewer` reviews. Never pass `tools` — it whitelists eval-kernel tools and strips the native set.
 
 Flow: [Scout if cold] → Plan → per slice [Write → Wall → Commit → Review] → end review → push → report.
 
-## Phase 0: Preflight
+## [YOU] Phase 0: Preflight
 
 - `git status --porcelain` dirty → stop; the run must own every commit it reports.
 - `git rev-parse HEAD` → **run base**; the end review diffs from it. Stay on the current branch.
@@ -24,7 +24,7 @@ Flow: [Scout if cold] → Plan → per slice [Write → Wall → Commit → Revi
 
 **Done**: clean tree, run base recorded, numbered requirement list distilled.
 
-## Phase 1: Scout (cold only)
+## [AGENTS] Phase 1: Scout (cold only)
 
 One batch, two `scout` tasks:
 
@@ -33,7 +33,7 @@ One batch, two `scout` tasks:
 
 **Done**: target files, seams, standards paths, and verification commands named.
 
-## Phase 2: Plan
+## [YOU] Phase 2: Plan
 
 1. **Public seam** — where tests observe behavior without internals.
 2. **Slices** — 1–3 tracer bullets, each green end-to-end, each with its files, verification command, and commit message. A slice's file list carries every file the suite needs at its boundary; a slice that needs its successor to go green is not a boundary — merge or move files.
@@ -48,9 +48,9 @@ The Writer owns first edits — every slice, the end-reviewed one included, even
 
 After that, the Orchestrator touches tracked files only for a **mechanical** fix (stateable in one line: format, import, typo, lint nit), for findings from a review of that slice once a reviewer has reported, or to stage, commit, edit `.gitignore`, clean `.work/`, dispatch reviews. No design work, no first implementation between Writer and commit.
 
-## Phase 3: Slice loop
+## [BOTH] Phase 3: Slice loop
 
-### 3a Write
+### [AGENTS] 3a Write
 
 One Writer (`task`) per slice, sequentially — never in parallel.
 
@@ -65,7 +65,7 @@ First read and follow: skill://tdd, skill://ponytail, skill://documenting-code, 
 
 **Done**: targeted test green, RED→GREEN proof in the report.
 
-### 3b Wall
+### [YOU] 3b Wall
 
 **Wall** = typecheck, lint, format, then the full suite, using the commands Phase 1 found (a warm run takes them from the repo's scripts or the brief); when a pre-commit hook covers the static checks, the suite alone. No suite in the repo → say so and rely on the targeted test.
 
@@ -73,7 +73,7 @@ Fix and rerun: a mechanical fix the Orchestrator makes itself, anything else one
 
 **Done**: static checks and the full suite green.
 
-### 3c Commit
+### [YOU] 3c Commit
 
 Clear temp files, update `.gitignore` if needed. `HEAD` before this commit is the slice's review **base**. Stage by path, then check `git status` — `git add -A` only when the tree holds nothing unrelated.
 
@@ -84,13 +84,13 @@ git commit -m "<type>(<scope>): <summary>"   # `closes #<issue>` on the run's la
 
 **Done**: one commit, working tree clean, base recorded.
 
-### 3d Review the slice (every slice but the last)
+### [AGENTS] 3d Review the slice (every slice but the last)
 
 Review `<base>..HEAD` under [Review mechanics](#review-mechanics). Both axes `PASS` → next slice. Otherwise fix (design or multi-site: Writer; mechanical: direct), rerun the wall, commit `fix(<scope>): address review findings`, next slice — no second review of that slice.
 
 **Done**: both axes `PASS`, or the fix commit is green.
 
-## Phase 4: End review (at most two invocations)
+## [AGENTS] Phase 4: End review (at most two invocations)
 
 Range `<run base>..HEAD` — every commit of the run. Review 1 is the same two-axis invocation; fixes → wall → commit as in 3d.
 
@@ -98,7 +98,7 @@ Range `<run base>..HEAD` — every commit of the run. Review 1 is the same two-a
 
 **Done**: both axes `PASS` on the last invocation, or every open finding has a fix commit and a report line.
 
-## Phase 5: Push and report
+## [YOU] Phase 5: Push and report
 
 ```bash
 git push          # no upstream → git push -u origin HEAD
