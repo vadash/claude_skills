@@ -26,7 +26,7 @@ Then validate: `git rev-parse <base>` resolves and the diff is non-empty. A bad 
 
 Hunt in this order and stop at the first hit:
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`), fetched by the workflow in `docs/agents/issue-tracker.md`. That file missing: tell the user to run `/setup-matt-pocock-skills`.
+1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`), fetched by the workflow in `docs/agents/issue-tracker.md`. That file missing: tell the user to run `/skill:setup-matt-pocock-skills`.
 2. A path passed as an argument.
 3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or the feature.
 4. Ask the user. If they say there is no spec, record the absence.

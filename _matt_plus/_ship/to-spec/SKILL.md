@@ -10,7 +10,7 @@ Do not interview the user. Synthesise what you already know.
 
 Invocation: `/skill:to-spec` with no arguments, or a reference to the discussion to capture. Invoking it authorises writing and publishing the spec to the configured tracker.
 
-The issue tracker and triage label vocabulary should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
+The issue tracker and triage label vocabulary should have been provided to you. If not, tell the user to run `/skill:setup-matt-pocock-skills`.
 
 **Running after a skill-state procedure.** If a `skill-state` procedure was engaged when you were invoked, the runtime disengaged it before your first step (notice: `handed off to ordinary skill "to-spec"`): the transcript — the discussion you are synthesizing — is visible again. Synthesize from the conversation plus repo exploration. Do not re-plan anything and do not ask the user to repeat what the transcript already holds. If there is no discussion to synthesize (a fresh session), say so and stop.
 

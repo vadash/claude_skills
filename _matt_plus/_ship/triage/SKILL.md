@@ -10,7 +10,7 @@ Invocation: `/skill:triage <what the maintainer wants, in natural language>` —
 
 A named state is an instruction, not a proposal: "move #42 to ready-for-agent" skips Phases 3 to 5. Confirm the concrete actions first — role changes, comment, close — then take them. Moving to `ready-for-agent` without a grilling session raises one question: do they want an agent brief written?
 
-The tracker setup and the label mapping should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
+The tracker setup and the label mapping should have been provided to you. If not, tell the user to run `/skill:setup-matt-pocock-skills`.
 
 ## Roles: five **state**, two **category**
 
@@ -84,9 +84,9 @@ Check the claim before grilling it. For a bug, reproduce it from the reporter's 
 
 ## [YOU] Phase 5: Grill
 
-Only when the request still needs fleshing out. Call the Skill tool twice, for "grilling" and "domain-modeling", then grill one round of questions at a time, sharpening domain terms and updating `CONTEXT.md` and the ADRs inline as decisions land.
+Only when the request still needs fleshing out. Read `skill://grilling` and `skill://domain-modeling`, then grill one round of questions at a time, sharpening domain terms and updating `GLOSSARY.md` and the ADRs inline as decisions land.
 
-**Done**: every question from the grilling is answered in the notes or recorded as a decision in `CONTEXT.md` or an ADR.
+**Done**: every question from the grilling is answered in the notes or recorded as a decision in `GLOSSARY.md` or an ADR.
 
 ## [YOU] Phase 6: Apply the outcome
 

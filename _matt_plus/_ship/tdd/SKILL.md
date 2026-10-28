@@ -7,7 +7,7 @@ You [YOU] are the implementer at the keyboard. This skill is the reference that 
 
 Invocation: `/skill:tdd`, or the user naming it. No arguments. Invoking it authorises writing the failing test first and holding the implementation to it.
 
-When exploring the codebase, read `CONTEXT.md` if it exists, so test names and interface vocabulary match the project's domain language, and respect ADRs in the area you touch.
+When exploring the codebase, read `GLOSSARY.md` if it exists, so test names and interface vocabulary match the project's domain language, and respect ADRs in the area you touch.
 
 ## What a good test is
 

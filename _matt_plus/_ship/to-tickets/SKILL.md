@@ -8,7 +8,7 @@ You [YOU] are the orchestrator: this thread, the one the user is typing into. Yo
 
 Invocation: `/skill:to-tickets` with no argument, or one reference — a spec path, an issue number, an issue URL. The reference names the source to break down. Invoking it authorises publishing the approved tickets to the configured tracker.
 
-The issue tracker and triage label vocabulary should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
+The issue tracker and triage label vocabulary should have been provided to you. If not, tell the user to run `/skill:setup-matt-pocock-skills`.
 
 ## [YOU] Phase 1: Gather context
 
@@ -55,7 +55,7 @@ Iterate until the user approves.
 
 ## [YOU] Phase 5: Publish
 
-Publish the approved tickets. The tickets are the same either way; only the shape of the blocking edges changes with the tracker `/setup-matt-pocock-skills` configured:
+Publish the approved tickets. The tickets are the same either way; only the shape of the blocking edges changes with the tracker `/skill:setup-matt-pocock-skills` configured:
 
 - **Local files** → one file per ticket under `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` in dependency order (blockers first). Each file's "Blocked by" lists the numbers/titles it depends on, as text. One ticket per file, never a single combined file.
 - **A real issue tracker (GitHub, Linear, …)** → one issue per ticket, in dependency order (blockers first) so each blocking edge can reference a real identifier. Use the platform's native blocking / sub-issue link where it has one; otherwise set "Blocked by" to the blocking issues. Apply the `ready-for-agent` triage label unless instructed otherwise: the tickets are agent-grabbable by construction.

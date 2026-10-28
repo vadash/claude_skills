@@ -28,7 +28,7 @@ Flow: `[Scout if cold] → Plan → per slice [Worker → Wall → Commit → re
 One batch, two `scout` tasks. Each brief carries R1…Rn verbatim, the repo root, and an explicit question list — a weak model left to "understand the codebase" returns prose the plan cannot use.
 
 - **Repo** scout, loads `skill://codebase-design`: which files and callers does the ticket touch; where are the seam candidates; what are the exact verification commands (from `package.json` and configs); where do the standards docs live (`AGENTS.md`, `CONTRIBUTING.md`).
-- **Domain** scout, loads `skill://domain-modeling`: canonical terms; constraints from `CONTEXT.md` and ADRs; which fixtures and test patterns the new tests should emulate.
+- **Domain** scout, loads `skill://domain-modeling`: canonical terms; constraints from `GLOSSARY.md` and ADRs; which fixtures and test patterns the new tests should emulate.
 
 Output contract, identical for both: ≤500 words, fixed shape `Files / Seams / Commands / Standards`, every claim as `path:line`, no code. Why fixed: the plan consumes four named things, and a shape that names them fails loudly when one is missing.
 
