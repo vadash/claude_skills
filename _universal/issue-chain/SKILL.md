@@ -24,7 +24,7 @@ sequential — no dependency analysis, no reordering, no parallelism.
 Why so thin: `implement-agents` already runs typecheck, lint, the full suite, an
 end review, and a smoke of the changed surface for the ticket it was given. A
 second verify pass here would re-run the same commands on the same tree and prove
-nothing the worker's own wall did not. The one thing a worker cannot fake is git
+nothing the worker own wall did not. The one thing a worker cannot fake is git
 state, so that is the only gate you run.
 
 ## Phase 0 — Build the queue
@@ -57,7 +57,7 @@ One `task` subagent per ticket, named `Ticket<N>`, whose entire task text is one
 line:
 
 ```
-Read skill://implement-agents; follow it for issue://10.
+Read skill://implement-agents; follow it for issue://10. You are an orchestrator, dont do everything in one thread!
 ```
 
 With `freebuff` on the invocation, the line reads
