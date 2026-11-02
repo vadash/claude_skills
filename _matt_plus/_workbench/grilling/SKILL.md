@@ -38,4 +38,8 @@ An answer can invalidate a decision already settled. When it does, re-open that 
 
 Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it; don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report; ask the rest of the frontier now. The _decisions_ are the user's: put each to them and wait.
 
-**Done**: the frontier is empty and no settled decision is left implicit. Do not act on it until the user confirms you have reached a shared understanding.
+## Stop at shared understanding
+
+The interview ends the moment the frontier is empty; it does not roll into implementation. A shared understanding is not permission to act, and a user confirming the understanding is confirming the interview, not requesting code. Close with the settled summary the user needs to decide what happens next, then stop. Do not start a spec, tickets, edits, or any other skill until the user gives an explicit command in a new message.
+
+**Done**: the frontier is empty and no settled decision is left implicit. When it is, stop and wait; the user decides what happens next.
