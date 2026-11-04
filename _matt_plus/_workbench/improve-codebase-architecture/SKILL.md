@@ -44,7 +44,16 @@ Apply the **deletion test** to anything you suspect is shallow: would deleting i
 
 ## [YOU] Phase 3: Present candidates as an HTML report
 
-Write a self-contained HTML file to the OS temporary directory so nothing lands in the repo. Resolve the temp dir from `$TMPDIR` (`%TEMP%` on Windows), falling back to the OS default temporary directory, and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file. Open it for the user (`xdg-open <path>` on Linux, `open <path>` on macOS, `start <path>` on Windows) and tell them the absolute path.
+Write a self-contained HTML file to the OS temporary directory so nothing lands in the repo. Resolve the temp dir from `$TMPDIR` (`%TEMP%` on Windows), falling back to the OS default temporary directory, and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file.
+
+Then give the user the path — **do not try to open it**. Never shell out to `start`, `explorer`, `cmd.exe /c start`, `xdg-open`, or `open`: on Windows the variant that works depends on the shell, so each guess burns a tool call and usually still fails. Print the absolute path in the platform's native form in backticks, plus the same file as a `file://` URL:
+
+```text
+C:\Users\<you>\AppData\Local\Temp\architecture-review-2026-04-01T12-00-00.html
+file:///C:/Users/<you>/AppData/Local/Temp/architecture-review-2026-04-01T12-00-00.html
+```
+
+Resolve `%TEMP%` to the real directory first (environment variable, not a guess), and on POSIX print `/tmp/architecture-review-….html` with `file:///tmp/architecture-review-….html`. Either form pastes into Explorer or a browser address bar, so the user opens it themselves in one step.
 
 The report uses **Tailwind via CDN** for layout and styling, and **Mermaid via CDN** for diagrams where a graph/flow/sequence reliably communicates the structure. Mix Mermaid with hand-crafted CSS/SVG visuals: use Mermaid when relationships are graph-shaped (call graphs, dependencies, sequences), and hand-built divs/SVG when you want something more editorial (mass diagrams, cross-sections, collapse animations). Each candidate gets a **before/after visualisation**. Be visual.
 
@@ -67,7 +76,7 @@ End the report with a **Top recommendation** section: which candidate you'd tack
 
 Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"
 
-**Done**: one fresh report file exists in the OS temporary directory, is open for the user, and you have told them its absolute path; every candidate card carries all six elements plus a before/after diagram; the Top recommendation section names one candidate; and the question "Which of these would you like to explore?" has been asked. No interface has been proposed.
+**Done**: one fresh report file exists in the OS temporary directory and you have given the user both its native absolute path and its `file://` URL, without trying to open it; every candidate card carries all six elements plus a before/after diagram; the Top recommendation section names one candidate; and the question "Which of these would you like to explore?" has been asked. No interface has been proposed.
 
 ## [YOU] Phase 4: Grill the pick
 

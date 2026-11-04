@@ -24,6 +24,8 @@ Format a round like so:
 
 Word each question so "yes" accepts your recommended answer.
 
+**Numbers run once across the whole interview, never per round.** If a round ends at Q7, the next round opens at Q8 — a new round is a new frontier, not a new count. Refer to settled decisions by their number ("Q3 settled the storage layer"), and re-ask a fallen decision under a fresh number. Restarting at Q1 makes the user's own references ambiguous and hides how far the interview has travelled.
+
 Each round the user answers reshapes the tree: settled decisions push the frontier outward and unblock questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
 
 ## State lives in the conversation
