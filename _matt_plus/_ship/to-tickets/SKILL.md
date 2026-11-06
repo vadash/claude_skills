@@ -32,6 +32,7 @@ Break the work into **tracer bullet** tickets:
 - A completed slice is demoable or verifiable on its own.
 - Each slice is sized to fit in a single fresh context window.
 - Any prefactoring comes first.
+- Self contained, have clear end goal and implementing agent wont have access to this deep brainstorming. Root epic spec will be provided if you see it in current history, no need to dublicate
 
 Give each ticket its **blocking edges**: the other tickets that must complete before it can start. A ticket with no blockers can start immediately.
 
