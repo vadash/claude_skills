@@ -18,6 +18,7 @@ Flow: `[Scout if cold] → Plan → per slice [Worker → Wall → Commit → re
 - `git rev-parse HEAD` → **base**, the end review's fixed point. Stay on the current branch.
 - **Spec**: `read` `issue://<N>` (`issue://<owner>/<repo>/<N>` when needed), plus the parent issue when the ticket has one; `gh` only if the URI fails.
 - Distil **R1…Rn** — the numbered requirements every reviewer receives. Written down, not remembered.
+- Paste R1…Rn verbatim **plus the worked formula/example** into each slice `context`. The example is the acceptance; the sentence is not.
 - A spec gap that changes the design → one question before Plan. A small one → take the boring option and report it.
 - **Warm** run (design already in this conversation, e.g. after `to-spec` or a `grilling`) skips Phase 1. **Cold** run (a bare ticket reference) takes it.
 
@@ -38,6 +39,7 @@ Output contract, identical for both: ≤500 words, fixed shape `Files / Seams / 
 
 1. **Public seam** — the interface where tests observe behaviour without internals.
 2. **Slices** — 1–3 tracer bullets, each green end to end. Each carries its files, its verification command, its commit message, and a **review flag**. A slice's file list holds every file the suite needs at its boundary; a slice that needs its successor to go green is not a boundary — merge it or move the files.
+  - `Files`: write list. `Read-only`: lifecycle owners the worker must read but never edit (instance construction, event wiring, reset seams).
 3. **Workers** — one fresh Worker per slice when the slices touch disjoint modules; one Worker throughout when each slice re-reads the previous diff.
 4. **Review points** — the flagged slices and the end review.
 
@@ -59,6 +61,8 @@ Verification command: <targeted test command>
 
 First read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
 ```
+Use `grep` for search, `read` with ranges; never `bash` grep/sed, never `history://` pulls.
+Ambiguous acceptance that changes tests → ask via `write agent://<id>` before inventing; small gap → boring option + report.
 The brief names the targeted verification command plus file-scoped lint only — never the repo-wide gates (typecheck, full lint, format, suite). The orchestrator runs the wall once in 3b; a worker that runs them proves nothing the wall will not re-prove.
 
 **Done**: the targeted test is green, with RED→GREEN proof in the report.
