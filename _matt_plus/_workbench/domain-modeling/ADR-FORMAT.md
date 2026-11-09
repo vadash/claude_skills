@@ -16,6 +16,10 @@ Create the `docs/adr/` directory lazily: only when the first ADR is needed.
 
 That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why*, not in filling out sections.
 
+Before writing, check the folder for the fact: each fact lives in exactly one ADR. If it lives elsewhere, cite that ADR instead of restating it.
+
+Names only in the paragraph: the module, the seam, the term. Signatures, field lists, and file inventories live in code.
+
 Default is no sections. Ship the paragraph alone unless a section passes its test.
 
 - **Status** frontmatter (`proposed | accepted | deprecated | superseded by ADR-NNNN`): useful when decisions are revisited
@@ -24,7 +28,7 @@ Default is no sections. Ship the paragraph alone unless a section passes its tes
 
 ## Numbering
 
-Scan `docs/adr/` for the highest existing number and increment by one.
+Scan `docs/adr/` for the highest existing number and increment by one. When a successor restates a decision whole, retire the file: delete it and add its number and title to the retired table. When the successor only extends it, keep the file with `status: superseded by ADR-NNNN` frontmatter.
 
 ## When to offer an ADR
 
