@@ -51,7 +51,7 @@ Flag a slice for review when it touches the public seam or a contract a later sl
 
 ### [AGENTS] 3a Worker
 
-One Worker (`task`) per slice, sequentially — never in parallel.
+One Worker (`task`) per slice, sequentially — never in parallel, and never a second Worker for an edit the live Worker owns: while a Worker is alive, its follow-ups go to it via `write agent://<id>`, not to a new dispatch. If a parallel dispatch is unavoidable, park or kill the first before spawning the second.
 
 ```markdown
 Target slice: <description>
@@ -62,7 +62,7 @@ Verification command: <targeted test command>
 First read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
 ```
 Use `grep` for search, `read` with ranges; never `bash` grep/sed, never `history://` pulls.
-Ambiguous acceptance that changes tests → ask via `write agent://<id>` before inventing; small gap → boring option + report.
+Ambiguous acceptance that changes tests → ask via `write agent://<id>` before inventing; small gap → boring option + report. Mechanical fallout the fix needs in files it read to verify (types, imports, format) is in scope: fix it, report it, never ask.
 The brief names the targeted verification command plus file-scoped lint only — never the repo-wide gates (typecheck, full lint, format, suite). The orchestrator runs the wall once in 3b; a worker that runs them proves nothing the wall will not re-prove.
 
 **Done**: the targeted test is green, with RED→GREEN proof in the report.
