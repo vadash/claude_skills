@@ -16,13 +16,11 @@ Create the `docs/adr/` directory lazily: only when the first ADR is needed.
 
 That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why*, not in filling out sections.
 
-## Optional sections
-
-Only include these when they add genuine value. Most ADRs won't need them.
+Default is no sections. Ship the paragraph alone unless a section passes its test.
 
 - **Status** frontmatter (`proposed | accepted | deprecated | superseded by ADR-NNNN`): useful when decisions are revisited
-- **Considered Options**: only when the rejected alternatives are worth remembering
-- **Consequences**: only when non-obvious downstream effects need to be called out
+- **Considered Options**: include only if a future reader would plausibly re-propose it. One line per alternative: name + why rejected.
+- **Consequences**: include only if the paragraph does not already state it. One line per effect: the file, seam, or term that changes.
 
 ## Numbering
 
