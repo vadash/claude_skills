@@ -76,8 +76,9 @@ Clear temp files; update `.gitignore` when the slice produced debris. `HEAD` bef
 
 ```bash
 git add <slice paths>
-git commit -m "<type>(<scope>): <summary>"   # `closes #<issue>` on the run's last commit
+git commit -m "<type>(<scope>): <summary>"
 ```
+No trailer per slice — the `closes` reference lands once in Phase 5, so fix commits and hook bumps cannot strand it mid-range.
 
 **Done**: one commit, clean tree, slice base recorded.
 
@@ -87,15 +88,12 @@ Run `skill://implement/references/review.md` over `<slice base>..HEAD`. Both axe
 
 **Done**: both axes `PASS`, or the fix commit is green.
 
-## [AGENTS] Phase 4: End review
-
-Range `<base>..HEAD` — every commit of the run — at most two invocations, per `skill://implement/references/review.md`.
-
-**Done**: both axes `PASS` on the last invocation, or every open finding has a fix commit and a report line.
-
 ## [YOU] Phase 5: Push and report
 
+Grep the range for the trailer first — the chain gates on it, and the push is the run's last chance to add it:
+
 ```bash
+git log <base>..HEAD --format=%B | grep -qi "closes #<issue>"  # miss → amend tip to add `closes #<issue>` to its body, then re-Wall
 git push          # no upstream → git push -u origin HEAD
 git status -sb
 ```

@@ -83,8 +83,8 @@ No tests, lint, or smoke here.
 
 `implement` stops at its own preflight on a dirty tree, because its run must own every commit it reports. A fresh worker inherits the leftovers only when told, so that sentence is the one fact worth adding — it is not restating the issue.
 
-1. Nag once via `write agent://Ticket<N>`, one line: `Finish issue://<N>. <git status lines>`. A completed child often refuses delivery; then it is unavailable — go to 2.
-2. Dispatch `Ticket<N>b` with the same contract line plus: `That dirty tree is yours to adopt: <git status lines>. Do not stop on preflight, and do not leave a partial state behind.`
+1. If the worker already reported completion, skip the nag — a completed child cannot resume; go to 2. Otherwise nag once via `write agent://Ticket<N>`, one line: `Finish issue://<N>. <git status lines>`, then wait for its reply, a delivery refusal, or a short timeout. NEVER dispatch while the first worker is still live: one ticket, one worker in flight.
+2. Dispatch `Ticket<N>b` with the same contract line plus, ONLY when `git status --porcelain` is non-empty: `That dirty tree is yours to adopt: <git status lines>. Do not stop on preflight, and do not leave a partial state behind.` On a clean tree whose only gate failure is the missing `#<N>` reference, scope is amend-the-reference only, not a full rerun.
 3. Still red → stop the chain, report, leave the rest queued.
 
 Cap: one nag plus one fresh worker per ticket. A third attempt is the same failure with more commits stacked on top.
