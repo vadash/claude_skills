@@ -59,6 +59,7 @@ Verification command: <targeted test command>
 
 First read and follow: skill://tdd, skill://ponytail, skill://documenting-code, skill://caveman.
 ```
+The brief names the targeted verification command plus file-scoped lint only — never the repo-wide gates (typecheck, full lint, format, suite). The orchestrator runs the wall once in 3b; a worker that runs them proves nothing the wall will not re-prove.
 
 **Done**: the targeted test is green, with RED→GREEN proof in the report.
 
