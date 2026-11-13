@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 You are the chain: a queue with a git gate. `[YOU]` is this thread, the orchestrator. `[AGENTS]` is a subagent dispatch, never inline work.
 
-Invocation: `/skill:issue-chain [freebuff] <epic#> | <a-b> | <a c d>`. Invoking authorizes one `implement` worker per ticket, plus pushing the commits those workers make. Nothing else — the chain implements nothing.
+Invocation: `/skill:issue-chain <epic#> | <a-b> | <a c d>`. Invoking authorizes one `implement` worker per ticket, plus pushing the commits those workers make. Nothing else — the chain implements nothing.
 
 Tickets run strictly one at a time, in queue order: no dependency analysis, no reordering, no parallelism.
 
@@ -37,17 +37,7 @@ One `[AGENTS]` dispatch per ticket: a `task` subagent named `Ticket<N>` whose en
 Read skill://implement; follow it for issue://<N>. Do not do the work in this thread.
 ```
 
-With freebuff on the invocation:
-
-```
-Read skill://implement; follow it in freebuff mode for issue://<N>. Do not do the work in this thread.
-```
-
-The `skill://` form is what resolves: a subagent prompt is plain text, not a command line, so a slash line there never expands.
-
 Nothing else goes in: no acceptance criteria, no repo path, no branch, no standards paste. The worker fetches the issue and the repo's `AGENTS.md` itself, so anything you add is dead weight nothing downstream can see. Wait for the result before the next ticket — tickets build on each other's commits. Never pass `tools`; it strips the worker's native toolset. Never dispatch `scout` or `reviewer`: the chain has no review phase of its own.
-
-Freebuff is an Instance one Task owns at a time; mechanics live in `skill://implement/references/freebuff.md`. The chain rule: the first ticket that reports a fallback to harness reviewers settles the mode for the rest of the queue, and every later dispatch drops `in freebuff mode`. Re-probing a dead Instance per ticket is twenty waits for the same answer.
 
 **Done**: one ticket dispatched, its report read, and no second ticket in flight.
 

@@ -8,9 +8,9 @@ You are the **Orchestrator** (`[YOU]`) for one ticket. `[YOU]` means this thread
 
 Dispatch through `task`, one batch per phase: top-level `context` (shared goal and constraints), `tasks[]` each with `task` and `solutionSpace`; `scout` reads, `task` writes, `reviewer` reviews. Never pass `tools` — it whitelists eval-kernel tools and strips the native set.
 
-Invocation: `/skill:implement [freebuff] <spec path | issue://N>`. Another skill dispatching here supplies the spec and names the mode (default: harness). Invoking authorizes local commits and `git push` on the current branch, never a merge.
+Invocation: `/skill:implement <spec path | issue://N>`. Another skill dispatching here supplies the spec. Invoking authorizes local commits and `git push` on the current branch, never a merge.
 
-Flow: `[Scout if cold] → Plan → per slice [Worker → Wall → Commit → review?] → end review → push → report`. When the mode is `freebuff`, the review phases run per `skill://implement/references/freebuff.md`.
+Flow: `[Scout if cold] → Plan → per slice [Worker → Wall → Commit → review?] → end review → push → report`.
 
 ## [YOU] Phase 0: Preflight
 
@@ -103,7 +103,7 @@ git push          # no upstream → git push -u origin HEAD
 git status -sb
 ```
 
-One row per slice, then the open findings, any freebuff fallback, and any question the run deferred:
+One row per slice, then the open findings and any question the run deferred:
 
 | Slice | Commit | Review | Tests |
 |---|---|---|---|
