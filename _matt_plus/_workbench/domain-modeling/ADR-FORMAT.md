@@ -1,34 +1,57 @@
 # ADR Format
 
-Reached from `skill://domain-modeling` when a decision meets all three conditions and is being written down.
+Reached from `skill://domain-modeling` when a decision passes the three tests and is recorded.
 
-ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc. Create the folder lazily: only when the first ADR is needed.
 
-Create the `docs/adr/` directory lazily: only when the first ADR is needed.
+## One file per decision family
+
+A decision is the smallest unit a future reader would re-litigate, not the smallest unit you decided. If two decisions share the same future reader and the same rejected alternative, they are one family. A feature may add zero records.
+
+The active set is a current-state reading surface, not a history. The 12k cap is a ceiling, not a target: there is no minimum, and a new project may have one record. Measure the numbered records only, not the README:
+
+```sh
+find docs/adr -maxdepth 1 -name '[0-9]*.md' -exec cat {} + | wc -m
+```
+
+```powershell
+(Get-ChildItem docs/adr -File | Where-Object Name -match '^\d' | Get-Content -Raw | Measure-Object -Character).Characters
+```
+
+A rough token count is characters / 4, so 12k tokens is about 48k characters. Run the command in the set you are editing. Over 48k characters is over budget: combine or retire before adding.
+
+A big project gets more reading surfaces, not a bigger one. Keep `docs/adr/` for system-wide decisions and put context decisions under `src/<context>/docs/adr/`; `GLOSSARY-MAP.md` routes to them. Keep the total an agent reads for one task — the root set plus the one context set it needs — under 12k; if that total is over, shrink the root set first because it should hold only decisions every context depends on. If one context set still exceeds 12k, cut spec content, merge families that share a reader and alternative, retire decisions that are no longer active, or split the context. A single context that genuinely needs more than 12k is too broad to be one context; split it rather than raising the ceiling.
+
+The folder README maps the active families and retired numbers; keep it a map, not a policy essay. The rules live in this skill.
 
 ## Template
 
 ```md
-# {Short title of the decision}
+# {Family title}
 
-{1-3 sentences: what's the context, what did we decide, and why.}
+{1-2 sentences: the family's shared context and decision.}
+
+**{Decision one}.** {1-3 sentences: what, why, and the rejected alternative only if non-obvious.}
+**{Decision two}.** ...
 ```
 
-That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why*, not in filling out sections.
+No frontmatter; git history is the date. A record can be a few paragraphs.
 
-Before writing, check the folder for the fact: each fact lives in exactly one ADR. If it lives elsewhere, cite that ADR instead of restating it.
+Before writing, search the active set: each fact lives in exactly one family. If it already lives there, extend that record. If it lives elsewhere, cite it instead of restating it.
 
-Names only in the paragraph: the module, the seam, the term. Signatures, field lists, and file inventories live in code.
+Names only: the module, seam, or term. Signatures, field lists, file inventories, layout sizes, step lists, and test procedures belong in code, the spec, `DESIGN.md`, or the lane doc.
 
-Default is no sections. Ship the paragraph alone unless a section passes its test.
+Default is no sections. `Considered Options` only if a future reader would plausibly re-propose the rejected option; one line per alternative, name plus why rejected. `Consequences` only if the record does not already state the effect; one line per effect.
 
-- **Status** frontmatter (`proposed | accepted | deprecated | superseded by ADR-NNNN`): useful when decisions are revisited
-- **Considered Options**: include only if a future reader would plausibly re-propose it. One line per alternative: name + why rejected.
-- **Consequences**: include only if the paragraph does not already state it. One line per effect: the file, seam, or term that changes.
+## Numbering and retirement
 
-## Numbering
+New families take the next number after the highest in use. Numbers are never reused.
 
-Scan `docs/adr/` for the highest existing number and increment by one. When a successor restates a decision whole, retire the file: delete it and add its number and title to the retired table. When the successor only extends it, keep the file with `status: superseded by ADR-NNNN` frontmatter.
+A minor change to one decision edits the family record in place; git history is the old state.
+
+A major change, or a change to half the family, writes a new family record that restates the current family, deletes the old file, and lists the old number under Retired in the README. Do not keep a `superseded by` stub in the active folder; git history holds the old text.
+
+If a family is too broad or changes often, split it into two families. If two families are one decision, merge them.
 
 ## When to offer an ADR
 

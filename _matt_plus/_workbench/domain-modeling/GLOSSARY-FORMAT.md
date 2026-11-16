@@ -26,9 +26,12 @@ _Avoid_: Client, buyer, account
 
 ## Rules
 
-- **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others under `_Avoid_`.
+- **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others under `_Avoid_`. If you cannot name a synonym to avoid and no neighbouring term needs a boundary, the term probably does not need an entry.
 - **Keep definitions tight.** One or two sentences max. Define what it IS, not what it does.
 - **Only include terms specific to this project's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
+- **A feature may add zero terms.** Before adding, name two maintainers who could disagree about the word, or the synonym the entry avoids. Most resolved terms belong in the plan or the code, not here.
+- **Never add code identifiers, UI states, config keys, build steps, or lane mechanics.** Those belong in code or the owning agent doc.
+- **Keep the file short enough to read in one pass.** If it grows past roughly 50 product terms, merge or delete before adding.
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
 
 ## Single vs multi-context repos
@@ -52,6 +55,8 @@ _Avoid_: Client, buyer, account
 - **Fulfillment → Billing**: Fulfillment emits `ShipmentDispatched` events; Billing consumes them to generate invoices
 - **Ordering ↔ Billing**: Shared types for `CustomerId` and `Money`
 ```
+
+A topic split is not a context. A product glossary plus a build or lane vocabulary in an owning agent doc does not need a `GLOSSARY-MAP.md`; the owning doc carries its terms. Use a map only when separate bounded contexts have their own language and decision set.
 
 The skill infers which structure applies:
 

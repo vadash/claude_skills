@@ -72,6 +72,8 @@ Default to **single-context** (one `GLOSSARY.md` + `docs/adr/` at the repo root)
 
 Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSSARY.md` files) only when exploration found monorepo signals. Then confirm which layout they want.
 
+A `GLOSSARY-MAP.md` is only for separate bounded contexts, never for a topic split such as product language versus build vocabulary. A topic's vocabulary lives in its owning doc.
+
 **Done**: each section that runs has one recorded answer, and the tracker choice is either reachable from this directory or has a named missing piece reported to the user.
 
 ## [YOU] Phase 4: Confirm and edit

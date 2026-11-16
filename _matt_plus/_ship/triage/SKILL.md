@@ -84,9 +84,9 @@ Check the claim before grilling it. For a bug, reproduce it from the reporter's 
 
 ## [YOU] Phase 5: Grill
 
-Only when the request still needs fleshing out. Read `skill://grilling` and `skill://domain-modeling`, then grill one round of questions at a time, sharpening domain terms and updating `GLOSSARY.md` and the ADRs inline as decisions land.
+Only when the request still needs fleshing out. Read `skill://grilling` and `skill://domain-modeling`, then grill one round of questions at a time. The triage notes are the default home for answers. Apply the domain-modeling tests: write an ADR or glossary entry only when a decision or term passes; most triage runs add none.
 
-**Done**: every question from the grilling is answered in the notes or recorded as a decision in `GLOSSARY.md` or an ADR.
+**Done**: every question from the grilling is answered in the notes; any ADR or glossary entry passes the domain-modeling test.
 
 ## [YOU] Phase 6: Apply the outcome
 

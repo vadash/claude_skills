@@ -84,9 +84,9 @@ Once the user picks a candidate, `read skill://grilling` and walk the decision t
 
 Side effects happen inline as decisions crystallize; `read skill://domain-modeling` to keep the domain model current as you go:
 
-- **Naming a deepened module after a concept not in `GLOSSARY.md`?** Add the term to `GLOSSARY.md`. Create the file lazily if it doesn't exist.
-- **Sharpening a fuzzy term during the conversation?** Update `GLOSSARY.md` right there.
+- **Naming a deepened module after a concept not in `GLOSSARY.md`?** Check the glossary test first; most modules need no new term. If the term passes, add it; otherwise keep the name in the report.
+- **Sharpening a fuzzy term during the conversation?** Update `GLOSSARY.md` only if the resolution changes how people speak; a one-off clarification stays in the report.
 - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing; skip ephemeral reasons ("not worth it right now") and self-evident ones.
 - **Want to explore alternative interfaces for the deepened module?** `read skill://codebase-design/DESIGN-IT-TWICE.md` and use its design-it-twice parallel subagent pattern.
 
-**Done**: the chosen candidate has been grilled to a decision — constraints, dependencies, module shape, what sits behind the seam, and which tests survive all settled — and every side effect that decision earned (glossary term added or sharpened, ADR offered and written on acceptance, interfaces explored by design-it-twice) has landed, not been queued for later.
+**Done**: the chosen candidate has been grilled to a decision — constraints, dependencies, module shape, what sits behind the seam, and which tests survive all settled — and every side effect that decision earned has landed, not been queued for later: a term added or sharpened only if it passed the glossary test, an ADR offered and written only on acceptance, interfaces explored by design-it-twice.

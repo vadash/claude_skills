@@ -18,6 +18,8 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Explore the repo to understand the current state of the codebase, if you have not already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you touch.
 
+The spec owns feature behavior; do not copy it into an ADR. An ADR records only a decision that passes `skill://domain-modeling`'s tests.
+
 **Done**: every module the spec will touch has been located, and the domain terms for it are taken from the project, not invented.
 
 ## [YOU] Phase 2: Sketch the seams

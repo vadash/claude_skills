@@ -1,14 +1,14 @@
 ---
 name: domain-modeling
-description: Build and sharpen a project's domain model — challenge fuzzy terms, keep GLOSSARY.md current, and record the decisions that earn an ADR.
+description: Build and sharpen a project's domain model — challenge fuzzy terms, keep GLOSSARY.md small and current, and record only the decisions that earn an ADR.
 disable-model-invocation: true
 ---
 
 # Domain Modeling
 
-Actively build and sharpen the project's domain model as you design. This is the *active* discipline: challenging terms, inventing edge-case scenarios, and writing the glossary and decisions down the moment they crystallise. (Merely *reading* `GLOSSARY.md` for vocabulary is not this skill: that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)
+Actively build and sharpen the project's domain model as you design. This is the *active* discipline: challenging terms, inventing edge-case scenarios, and writing down a real term or a decision that passes the tests the moment it crystallises. (Merely *reading* `GLOSSARY.md` for vocabulary is not this skill: that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)
 
-Invocation is `/skill:domain-modeling`, or the user naming it. It runs alongside the design work it is sharpening, not as a separate pass after it: terms get resolved mid-conversation and are written down at that moment.
+Invocation is `/skill:domain-modeling`, or the user naming it. It runs alongside the design work it is sharpening, not as a separate pass after it: a real term gets written down when it resolves, while the rest stays in the design.
 
 The names you settle here are the names the architecture takes. When the question turns to where a module's interface sits, how deep it is, or which dependencies cross its seam, read `skill://codebase-design` for that vocabulary: domain language names the seams, and the two references are consulted together.
 
@@ -64,9 +64,9 @@ When the user states how something works, check whether the code agrees. If you 
 
 ### Update GLOSSARY.md inline
 
-When a term is resolved, update `GLOSSARY.md` right there. Don't batch these up: capture them as they happen. Use the format in `skill://domain-modeling/GLOSSARY-FORMAT.md`.
+When a term is resolved, update `GLOSSARY.md` right there, but only when the term passes the test in `GLOSSARY-FORMAT.md`: two maintainers could disagree about the word, or the entry names a synonym to avoid. Most features add zero terms. Do not add code identifiers, UI states, config keys, build steps, or lane mechanics; those belong in code or the owning agent doc. Do not batch a real term; capture it when it resolves.
 
-`GLOSSARY.md` should be totally devoid of implementation details. Do not treat `GLOSSARY.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
+`GLOSSARY.md` is product language, not a spec, scratch pad, or implementation record.
 
 ### Offer ADRs sparingly
 
@@ -76,11 +76,11 @@ Only offer to create an ADR when all three are true:
 2. **Surprising without context**: a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off**: there were genuine alternatives and you picked one for specific reasons
 
-If any of the three is missing, skip the ADR. Use the format in `skill://domain-modeling/ADR-FORMAT.md`.
+If any is missing, skip it. A feature may add zero ADRs. One file is one decision family, not one decision: if two decisions share the same future reader and the same rejected alternative, they are one family. If the content is a layout, size, copy, step list, field list, enum, or test procedure, it is spec, not an ADR; put it in the spec, `DESIGN.md`, code, or the lane doc. Keep the active set under 12k tokens; combine or retire before adding past that. The ceiling, measuring command, and family format live in `skill://domain-modeling/ADR-FORMAT.md`.
 
 ## Reference files
 
 Both are read on demand, never up front:
 
 - A term is resolved and the glossary needs the entry → `skill://domain-modeling/GLOSSARY-FORMAT.md` for the entry shape, the `_Avoid_` rule, which terms belong, and the single-versus-multi-context `GLOSSARY-MAP.md` structure.
-- All three ADR conditions hold and a decision is being recorded → `skill://domain-modeling/ADR-FORMAT.md` for the one-paragraph template, the optional sections, numbering, and what qualifies as an ADR at all.
+- All three ADR conditions hold and a decision is being recorded → `skill://domain-modeling/ADR-FORMAT.md` for the family template, active-set budget, optional sections, numbering, and retirement.
