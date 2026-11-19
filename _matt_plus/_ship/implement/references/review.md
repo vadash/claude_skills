@@ -16,6 +16,9 @@ Review the committed range <base>..HEAD in <repo>.
 Run: git log <base>..HEAD --oneline; git diff <base>...HEAD
 Read and follow skill://code-review, including skill://code-review/references/smells.md.
 Axis: <Standards | Spec>
+Display-channel probe (both axes, only when the diff touches UI output paths): name the
+captured output each branch drops, and where it surfaces instead; a branch that discards
+output with no surface is a finding.
 Standards sources: <repo standards paths, from Phase 1>
 Spec: R1…Rn verbatim.
 

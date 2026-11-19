@@ -69,11 +69,17 @@ The brief names the targeted verification command plus file-scoped lint only —
 
 ### [YOU] 3b Wall
 
-**Wall** = typecheck, lint, format, then the full suite, using the commands Phase 1 found (a warm run reads them from the repo's scripts). When a pre-commit hook already runs the static checks, the suite alone is the Wall. No suite in the repo → say so and let the targeted test stand.
+**Wall per slice** = the slice's targeted verification command plus file-scoped lint only.
+Repo-wide gates mid-flight prove nothing the final wall will not re-prove; a worker that
+runs them wastes the run's slowest minutes on every slice.
+**Final wall** (once, pre-push, first step of Phase 5) = typecheck, lint, format, then the
+full suite, using the commands Phase 1 found (a warm run reads them from the repo's scripts).
+When a pre-commit hook already runs the static checks, the suite alone is the final wall.
+No suite in the repo → say so and let the targeted tests stand.
 
 Fix and rerun: a **mechanical** fix — stateable in one line, e.g. format, import, typo, lint nit — you make yourself; anything else goes to one Worker fixer with the failure output.
 
-**Done**: static checks and the full suite green.
+**Done**: the slice's targeted checks green (per-slice wall); static checks and the full suite green (final wall).
 
 ### [YOU] 3c Commit
 
